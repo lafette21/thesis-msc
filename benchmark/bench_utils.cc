@@ -75,36 +75,36 @@ static void bench_extract_clusters_filtered_downsampled_real(benchmark::State& s
     }
 }
 
-static void bench_extract_1_cylinder_sim(benchmark::State& state) {
+static void bench_extract_1_circle_sim(benchmark::State& state) {
     const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value()));
     const auto clusters = cluster(cloud);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
     for (auto _ : state) {
-        const auto tmp = extract_cylinder(point_clouds[0]);
+        const auto tmp = extract_circle(point_clouds[0]);
     }
 }
 
-static void bench_extract_1_cylinder_real(benchmark::State& state) {
+static void bench_extract_1_circle_real(benchmark::State& state) {
     const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value()));
     const auto clusters = cluster(cloud);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
     for (auto _ : state) {
-        const auto tmp = extract_cylinder(point_clouds[0]);
+        const auto tmp = extract_circle(point_clouds[0]);
     }
 }
 
-static void bench_extract_cylinders_par_sim(benchmark::State& state) {
+static void bench_extract_circles_par_sim(benchmark::State& state) {
     const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value()));
     const auto clusters = cluster(cloud);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
     for (auto _ : state) {
-        std::vector<std::future<std::tuple<nova::Vec4f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec3f>>>> futures;
+        std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
         for (const auto& elem : point_clouds) {
-            futures.push_back(std::async(extract_cylinder, elem));
+            futures.push_back(std::async(extract_circle, elem));
         }
 
         for (auto& f : futures) {
@@ -113,16 +113,16 @@ static void bench_extract_cylinders_par_sim(benchmark::State& state) {
     }
 }
 
-static void bench_extract_cylinders_par_real(benchmark::State& state) {
+static void bench_extract_circles_par_real(benchmark::State& state) {
     const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value()));
     const auto clusters = cluster(cloud);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
     for (auto _ : state) {
-        std::vector<std::future<std::tuple<nova::Vec4f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec3f>>>> futures;
+        std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
         for (const auto& elem : point_clouds) {
-            futures.push_back(std::async(extract_cylinder, elem));
+            futures.push_back(std::async(extract_circle, elem));
         }
 
         for (auto& f : futures) {
@@ -139,9 +139,9 @@ BENCHMARK(bench_cluster_filtered_downsampled_sim);
 BENCHMARK(bench_cluster_filtered_downsampled_real);
 BENCHMARK(bench_extract_clusters_filtered_downsampled_sim);
 BENCHMARK(bench_extract_clusters_filtered_downsampled_real);
-BENCHMARK(bench_extract_1_cylinder_sim);
-BENCHMARK(bench_extract_1_cylinder_real);
-BENCHMARK(bench_extract_cylinders_par_sim);
-BENCHMARK(bench_extract_cylinders_par_real);
+BENCHMARK(bench_extract_1_circle_sim);
+BENCHMARK(bench_extract_1_circle_real);
+BENCHMARK(bench_extract_circles_par_sim);
+BENCHMARK(bench_extract_circles_par_real);
 
 BENCHMARK_MAIN();
