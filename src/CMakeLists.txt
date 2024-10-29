@@ -1,4 +1,4 @@
-set(EXEC_NAME ph)
+set(EXEC_NAME perception)
 
 add_executable(${EXEC_NAME}
     main.cc

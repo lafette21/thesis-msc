@@ -6,6 +6,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+
 #include <nova/random.h>
 #include <nova/vec.h>
 
@@ -122,7 +123,7 @@
         }
     }
 
-    // Finally, the cylinder is refitted from the best consensus set
+    // Finally, the circle is refitted from the best consensus set
     const auto best_result = calculate_RANSAC_diffs(points, best_circle, threshold);
 
     std::vector<nova::Vec2f> inliers;

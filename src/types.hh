@@ -9,11 +9,6 @@
 #include <string>
 
 
-struct trafo {
-    Eigen::Matrix3f R;
-    Eigen::Vector3f t;
-};
-
 struct trafo_2d {
     Eigen::Matrix2f R;
     Eigen::Vector2f t;

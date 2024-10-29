@@ -17,7 +17,9 @@
 #include <ranges>
 
 
-std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>> pairing(const std::vector<nova::Vec3f>& params_a, const std::vector<nova::Vec3f>& params_b, float threshold = 0.5f) {
+auto pairing(const std::vector<nova::Vec3f>& params_a, const std::vector<nova::Vec3f>& params_b, float threshold = 0.5f)
+        -> std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>>
+{
     std::vector<nova::Vec3f> ret_a;
     std::vector<nova::Vec3f> ret_b;
     std::vector<std::vector<float>> dist_mx;
@@ -54,42 +56,6 @@ std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>> pairing(const std:
     return { ret_a, ret_b };
 }
 
-std::pair<std::vector<nova::Vec4f>, std::vector<nova::Vec4f>> pairing(const std::vector<nova::Vec4f>& params_a, const std::vector<nova::Vec4f>& params_b, float threshold = 0.5f) {
-    std::vector<nova::Vec4f> ret_a;
-    std::vector<nova::Vec4f> ret_b;
-    std::vector<std::vector<float>> dist_mx;
-
-    for (const auto& a : params_a) {
-        dist_mx.emplace_back(std::vector<float>{});
-        auto& vec = dist_mx.back();
-        const auto& c_a = nova::Vec2f{ a.x(), a.y() };
-
-        for (const auto& b : params_b) {
-            const auto& c_b = nova::Vec2f{ b.x(), b.y() };
-            vec.push_back((c_a - c_b).length());
-        }
-    }
-
-    // for (const auto& vec : dist_mx) {
-        // for (const auto& elem : vec) {
-            // std::cout << elem << ", ";
-        // }
-        // std::cout << std::endl;
-    // }
-
-    for (const auto& [idx, vec] : ranges::views::enumerate(dist_mx)) {
-        const auto& min = std::ranges::min(vec);
-        const auto idx_b = std::distance(vec.begin(), std::ranges::find(vec, min));
-
-        if (min < threshold) {
-            ret_a.push_back(params_a[idx]);
-            ret_b.push_back(params_b[idx_b]);
-            logging::debug("({}, {})\t({}, {})\tdist: {}", params_a[idx].x(), params_a[idx].y(), params_b[idx_b].x(), params_b[idx_b].y(), min);
-        }
-    }
-
-    return { ret_a, ret_b };
-}
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
     [[maybe_unused]] auto& logger = init("logger");
@@ -119,8 +85,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
     logging::info("Processing cloud(s)");
 
     pcl::PointCloud<pcl::PointXYZRGB> out;
-    // std::vector<nova::Vec4f> prev_cyl_params;
-    std::vector<nova::Vec3f> prev_cyl_params;
+    std::vector<nova::Vec3f> prev_circle_params;
     Eigen::Matrix3f trafo = Eigen::Matrix3f::Identity();
 
     for (const auto& [idx, cloud] : ranges::views::enumerate(clouds)) {
@@ -151,31 +116,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
             logging::debug("Cloud size: {}", elem.size());
         }
 
-        // std::vector<std::future<std::tuple<nova::Vec4f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec3f>>>> futures;
-
-        // for (const auto& elem : point_clouds) {
-            // futures.push_back(std::async(extract_cylinder, elem));
-        // }
-
-        // std::vector<nova::Vec4f> cyl_params;
-
-        // for (auto& f : futures) {
-            // const auto [params, cylinder, rest] = f.get();
-
-            // if (std::isnan(params.x()) or std::isnan(params.y()) or std::isnan(params.z()) or std::isnan(params.w())) {
-                // continue;
-            // }
-
-            // cyl_params.push_back(params);
-        // }
-
         std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
         for (const auto& elem : point_clouds) {
             futures.push_back(std::async(extract_circle, elem));
         }
 
-        std::vector<nova::Vec3f> cyl_params;
+        std::vector<nova::Vec3f> circle_params;
 
         for (auto& f : futures) {
             const auto [params, cylinder, rest] = f.get();
@@ -184,25 +131,25 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
                 continue;
             }
 
-            cyl_params.push_back(params);
+            circle_params.push_back(params);
         }
 
-        // for (const auto& p : cyl_params) {
+        // for (const auto& p : circle_params) {
             // fmt::print("{} {}\n", p.x(), p.y());
         // }
 
-        if (prev_cyl_params.size() > 0) {
-            const auto [curr_cyl_params, new_prev_cyl_params] = pairing(cyl_params, prev_cyl_params);
+        if (prev_circle_params.size() > 0) {
+            const auto [curr_circle_params, new_prev_circle_params] = pairing(circle_params, prev_circle_params);
 
             pcl::PointCloud<pcl::PointXYZRGB> prev_points;
 
-            for (const auto& params : new_prev_cyl_params) {
+            for (const auto& params : new_prev_circle_params) {
                 prev_points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
             }
 
             pcl::PointCloud<pcl::PointXYZRGB> curr_points;
 
-            for (const auto& params : curr_cyl_params) {
+            for (const auto& params : curr_circle_params) {
                 curr_points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
             }
 
@@ -245,14 +192,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char *argv[]) {
         } else {
             pcl::PointCloud<pcl::PointXYZRGB> points;
 
-            for (const auto& params : cyl_params) {
+            for (const auto& params : circle_params) {
                 points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
             }
 
             out += points;
         }
 
-        prev_cyl_params = cyl_params;
+        prev_circle_params = circle_params;
 
         logging::info("Processing took: {}", std::chrono::duration_cast<std::chrono::milliseconds>(nova::now() - start));
     }
