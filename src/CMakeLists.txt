@@ -5,10 +5,12 @@ add_executable(${EXEC_NAME}
 )
 
 target_include_directories(${EXEC_NAME} PUBLIC
+    ${Boost_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
 )
 
 target_link_libraries(${EXEC_NAME} PUBLIC
+    Boost::program_options
     fmt::fmt-header-only
     nova
     range-v3::range-v3
