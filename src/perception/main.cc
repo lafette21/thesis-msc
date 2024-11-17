@@ -1,5 +1,5 @@
 #include "nova/vec.h"
-#include "simulator/logging.hh"
+#include "logging.hh"
 #include "utils.hh"
 #include "types.hh"
 
