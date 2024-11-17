@@ -1,9 +1,8 @@
-#include "nova/vec.h"
 #include "logging.hh"
 #include "utils.hh"
 #include "types.hh"
 
-#include <nova/io.h>
+#include <nova/io.hh>
 
 #include <boost/program_options.hpp>
 #include <fmt/chrono.h>

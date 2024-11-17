@@ -1,8 +1,8 @@
 #include "simulation.hh"
 
-#include <nova/io.h>
-#include <nova/json.h>
-#include <nova/utils.h>
+#include <nova/io.hh>
+#include <nova/json.hh>
+#include <nova/utils.hh>
 
 #include <boost/program_options.hpp>
 #include <range/v3/algorithm.hpp>

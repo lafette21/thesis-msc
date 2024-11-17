@@ -10,7 +10,7 @@
 #include "types.hh"
 #include "utils.hh"
 
-#include <nova/json.h>
+#include <nova/json.hh>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/zip.hpp>

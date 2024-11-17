@@ -7,8 +7,8 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <nova/random.h>
-#include <nova/vec.h>
+#include <nova/random.hh>
+#include <nova/vec.hh>
 
 #include <ranges>
 

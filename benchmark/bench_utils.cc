@@ -2,7 +2,7 @@
 #include "utils.hh"
 
 #include <benchmark/benchmark.h>
-#include <nova/io.h>
+#include <nova/io.hh>
 
 #include <future>
 #include <tuple>

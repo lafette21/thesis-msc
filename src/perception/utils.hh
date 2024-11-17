@@ -5,7 +5,7 @@
 #include "ransac.hh"
 #include "types.hh"
 
-#include <nova/vec.h>
+#include <nova/vec.hh>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
 #include <pcl/features/normal_3d.h>
