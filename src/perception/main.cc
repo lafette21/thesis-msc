@@ -100,6 +100,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         const auto to = (*args)["end"].as<std::size_t>();
         const auto out_dir = (*args)["outdir"].as<std::string>();
 
+        if (not std::filesystem::exists(out_dir)) {
+            if (std::filesystem::create_directory(out_dir)) {
+                logging::info("Directory created: {}", out_dir);
+            } else {
+                logging::error("Failed to create directory: {}", out_dir);
+            }
+        }
+
         std::vector<pcl::PointCloud<pcl::PointXYZRGB>> clouds;
         clouds.reserve(to - from);
 
