@@ -7,7 +7,6 @@
 #include <boost/program_options.hpp>
 #include <fmt/chrono.h>
 #include <fmt/format.h>
-#include <range/v3/view/enumerate.hpp>
 #include <spdlog/spdlog.h>
 
 #include <cstdlib>
@@ -18,45 +17,6 @@
 
 namespace po = boost::program_options;
 
-
-auto pairing(const std::vector<nova::Vec3f>& params_a, const std::vector<nova::Vec3f>& params_b, float threshold = 0.5f)
-        -> std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>>
-{
-    std::vector<nova::Vec3f> ret_a;
-    std::vector<nova::Vec3f> ret_b;
-    std::vector<std::vector<float>> dist_mx;
-
-    for (const auto& a : params_a) {
-        dist_mx.emplace_back(std::vector<float>{});
-        auto& vec = dist_mx.back();
-        const auto& c_a = nova::Vec2f{ a.x(), a.y() };
-
-        for (const auto& b : params_b) {
-            const auto& c_b = nova::Vec2f{ b.x(), b.y() };
-            vec.push_back((c_a - c_b).length());
-        }
-    }
-
-    // for (const auto& vec : dist_mx) {
-        // for (const auto& elem : vec) {
-            // std::cout << elem << ", ";
-        // }
-        // std::cout << std::endl;
-    // }
-
-    for (const auto& [idx, vec] : ranges::views::enumerate(dist_mx)) {
-        const auto& min = std::ranges::min(vec);
-        const auto idx_b = std::distance(vec.begin(), std::ranges::find(vec, min));
-
-        if (min < threshold) {
-            ret_a.push_back(params_a[idx]);
-            ret_b.push_back(params_b[idx_b]);
-            logging::debug("({}, {})\t({}, {})\tdist: {}", params_a[idx].x(), params_a[idx].y(), params_b[idx_b].x(), params_b[idx_b].y(), min);
-        }
-    }
-
-    return { ret_a, ret_b };
-}
 
 
 auto parse_args(int argc, char* argv[])
