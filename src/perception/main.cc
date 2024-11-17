@@ -3,6 +3,7 @@
 #include "types.hh"
 
 #include <nova/io.hh>
+#include <nova/json.hh>
 
 #include <boost/program_options.hpp>
 #include <fmt/chrono.h>
@@ -17,6 +18,7 @@
 
 namespace po = boost::program_options;
 
+using json = nova::json;
 
 
 auto parse_args(int argc, char* argv[])
@@ -24,7 +26,7 @@ auto parse_args(int argc, char* argv[])
 {
     auto arg_parser = po::options_description("Perception");
     arg_parser.add_options()
-        // ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config file")
+        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config file")
         ("indir,i", po::value<std::string>()->required()->value_name("DIR"), "Input directory (file name format: `test_fn{num}.xyz`)")
         ("start,s", po::value<std::size_t>()->required()->value_name("START"), "Start of the range")
         ("end,e", po::value<std::size_t>()->required()->value_name("END"), "End of the range")
@@ -55,6 +57,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             return EXIT_SUCCESS;
         }
 
+        const json config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
         const auto in_dir = (*args)["indir"].as<std::string>();
         const auto from = (*args)["start"].as<std::size_t>();
         const auto to = (*args)["end"].as<std::size_t>();
@@ -67,6 +70,26 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
                 logging::error("Failed to create directory: {}", out_dir);
             }
         }
+
+        const auto leaf_size = nova::Vec3f{
+            config.lookup<float>("downsampling.leaf_size.x"),
+            config.lookup<float>("downsampling.leaf_size.y"),
+            config.lookup<float>("downsampling.leaf_size.z"),
+        };
+        const auto fp_dist_threshold = config.lookup<double>("plane_filtering.distance_threshold");
+        const auto fp_min_inliers = config.lookup<std::size_t>("plane_filtering.min_inliers");
+        const auto c_k_search = config.lookup<int>("clustering.k_search");
+        const auto c_cluster_size_max = config.lookup<unsigned>("clustering.cluster_size.max");
+        const auto c_cluster_size_min = config.lookup<unsigned>("clustering.cluster_size.min");
+        const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
+        const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
+        const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
+        const auto ce_ransac_threshold = config.lookup<float>("circle_extraction.ransac.distance_threshold");
+        const auto ce_ransac_iter = config.lookup<std::size_t>("circle_extraction.ransac.iter");
+        const auto ce_ransac_min_samples = config.lookup<std::size_t>("circle_extraction.ransac.min_samples");
+        const auto ce_ransac_r_max = config.lookup<float>("circle_extraction.ransac.r_max");
+        const auto ce_ransac_r_min = config.lookup<float>("circle_extraction.ransac.r_min");
+        const auto pairing_dist_threshold = config.lookup<float>("pairing.distance_threshold");
 
         std::vector<pcl::PointCloud<pcl::PointXYZRGB>> clouds;
         clouds.reserve(to - from);
@@ -92,11 +115,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
             const auto start = nova::now();
 
-            const auto downsampled = downsample(cloud);
-            const auto filtered = filter_planes(downsampled);
+            const auto downsampled = downsample(cloud, leaf_size);
+            const auto filtered = filter_planes(downsampled, fp_dist_threshold, fp_min_inliers);
             const auto flattened = flatten(filtered);
             // const auto downsampled = downsample(flattened);
-            const auto clusters = cluster(flattened);
+            const auto clusters = cluster(flattened, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
 
             // pcl::io::savePLYFile("./flattened.ply", flattened);
             // break;
@@ -118,7 +141,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
             for (const auto& elem : point_clouds) {
-                futures.push_back(std::async(extract_circle, elem));
+                futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min));
             }
 
             std::vector<nova::Vec3f> circle_params;
@@ -138,7 +161,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             // }
 
             if (prev_circle_params.size() > 0) {
-                const auto [curr_circle_params, new_prev_circle_params] = pairing(circle_params, prev_circle_params);
+                const auto [curr_circle_params, new_prev_circle_params] = pairing(circle_params, prev_circle_params, pairing_dist_threshold);
 
                 pcl::PointCloud<pcl::PointXYZRGB> prev_points;
 

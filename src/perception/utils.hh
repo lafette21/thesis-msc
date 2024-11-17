@@ -34,18 +34,18 @@
     return ret;
 }
 
-[[nodiscard]] inline auto downsample(const pcl::PointCloud<pcl::PointXYZRGB>& cloud) {
+[[nodiscard]] inline auto downsample(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, const nova::Vec3f& leaf_size) {
     pcl::PointCloud<pcl::PointXYZRGB> ret;
 
     pcl::VoxelGrid<pcl::PointXYZRGB> vg;
     vg.setInputCloud(cloud.makeShared());
-    vg.setLeafSize(0.07f, 0.07f, 0.07f); // TODO: Need a good param - Set the leaf size (adjust as needed)
+    vg.setLeafSize(leaf_size.x(), leaf_size.y(), leaf_size.z());    // TODO: Need a good param - Set the leaf size (adjust as needed)
     vg.filter(ret);
 
     return ret;
 }
 
-[[nodiscard]] inline auto filter_planes(const pcl::PointCloud<pcl::PointXYZRGB>& cloud) {
+[[nodiscard]] inline auto filter_planes(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, double dist_threshold, std::size_t min_inliers) {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr _cloud = cloud.makeShared();
     pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
@@ -56,12 +56,12 @@
     // Mandatory
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(0.1);
+    seg.setDistanceThreshold(dist_threshold);
 
     seg.setInputCloud(_cloud);
     seg.segment(*inliers, *coefficients);
 
-    while (inliers->indices.size() > 500) {
+    while (inliers->indices.size() > min_inliers) {
         // extract inliers
         pcl::ExtractIndices<pcl::PointXYZRGB> extractor;
         extractor.setInputCloud(_cloud);
@@ -75,31 +75,31 @@
     return *_cloud;
 }
 
-[[nodiscard]] inline auto cluster(const pcl::PointCloud<pcl::PointXYZRGB>& cloud) {
+[[nodiscard]] inline auto cluster(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, int k_search, unsigned max_cluster_size, unsigned min_cluster_size, unsigned num_of_neighbours, float smoothness_threshold, float curvature_threshold) {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr _cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZRGB>>(cloud);
     pcl::search::Search<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB>);
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
     pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> normal_estimator;
     normal_estimator.setSearchMethod(tree);
     normal_estimator.setInputCloud(_cloud);
-    normal_estimator.setKSearch(50);
+    normal_estimator.setKSearch(k_search);
     normal_estimator.compute(*normals);
 
     pcl::IndicesPtr indices(new std::vector<int>);
     pcl::removeNaNFromPointCloud(*_cloud, *indices);
 
     pcl::RegionGrowing<pcl::PointXYZRGB, pcl::Normal> reg;
-    reg.setMinClusterSize(50);
-    reg.setMaxClusterSize(1000000);
+    reg.setMinClusterSize(min_cluster_size);
+    reg.setMaxClusterSize(max_cluster_size);
 
     reg.setSearchMethod(tree);
-    reg.setNumberOfNeighbours(30);
+    reg.setNumberOfNeighbours(num_of_neighbours);
     reg.setInputCloud(_cloud);
     reg.setIndices(indices);
     reg.setInputNormals(normals);
 
-    reg.setSmoothnessThreshold(18.0f / 180.0f * std::numbers::pi_v<float>);
-    reg.setCurvatureThreshold(1.0);
+    reg.setSmoothnessThreshold(smoothness_threshold);
+    reg.setCurvatureThreshold(curvature_threshold);
 
     std::vector<pcl::PointIndices> clusters;
     reg.extract(clusters);
@@ -181,7 +181,7 @@
     return ret;
 }
 
-[[nodiscard]] auto extract_circle(const pcl::PointCloud<pcl::PointXYZRGB>& cloud)
+[[nodiscard]] inline auto extract_circle(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, float threshold, std::size_t iter, std::size_t min_samples, float r_max, float r_min)
         -> std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>
 {
     const auto points = cloud
@@ -189,8 +189,8 @@
                       | std::views::filter([](const auto& elem) { return elem != nova::Vec3f { 0, 0, 0 }; })
                       | ranges::to<std::vector>();
 
-    const auto circle_params = estimate_circle_RANSAC(points, 0.07f, 10'000);
-    const auto differences = calculate_RANSAC_diffs(points, circle_params, 0.07f);
+    const auto circle_params = estimate_circle_RANSAC(points, threshold, iter, min_samples, r_max, r_min);
+    const auto differences = calculate_RANSAC_diffs(points, circle_params, threshold);
 
     pcl::PointCloud<pcl::PointXYZRGB> circle;
     std::vector<nova::Vec2f> rest;
@@ -210,7 +210,7 @@
     };
 }
 
-[[nodiscard]] auto pairing(const std::vector<nova::Vec3f>& params_a, const std::vector<nova::Vec3f>& params_b, float threshold = 0.5f)
+[[nodiscard]] inline auto pairing(const std::vector<nova::Vec3f>& params_a, const std::vector<nova::Vec3f>& params_b, float threshold)
         -> std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>>
 {
     std::vector<nova::Vec3f> ret_a;
