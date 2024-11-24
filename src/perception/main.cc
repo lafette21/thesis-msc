@@ -71,6 +71,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             }
         }
 
+        const auto downsampling_enabled = config.lookup<bool>("downsampling.enabled");
         const auto leaf_size = nova::Vec3f{
             config.lookup<float>("downsampling.leaf_size.x"),
             config.lookup<float>("downsampling.leaf_size.y"),
@@ -115,8 +116,12 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
             const auto start = nova::now();
 
-            const auto downsampled = downsample(cloud, leaf_size);
-            const auto filtered = filter_planes(downsampled, fp_dist_threshold, fp_min_inliers);
+            pcl::PointCloud<pcl::PointXYZRGB>& new_cloud = cloud;
+
+            if (downsampling_enabled) {
+                new_cloud = downsample(cloud, leaf_size);
+            }
+            const auto filtered = filter_planes(new_cloud, fp_dist_threshold, fp_min_inliers);
             const auto flattened = flatten(filtered);
             // const auto downsampled = downsample(flattened);
             const auto clusters = cluster(flattened, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);

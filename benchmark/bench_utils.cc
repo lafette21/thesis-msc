@@ -14,7 +14,7 @@
 
 using json = nova::json;
 
-constexpr auto create_config()
+auto create_config()
         -> json
 {
     return json(R"json({
