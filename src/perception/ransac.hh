@@ -1,7 +1,7 @@
 #ifndef RANSAC_HH
 #define RANSAC_HH
 
-#include <nova/vec.h>
+#include <nova/vec.hh>
 
 #include <vector>
 

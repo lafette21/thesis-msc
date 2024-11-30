@@ -7,8 +7,8 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <nova/random.h>
-#include <nova/vec.h>
+#include <nova/random.hh>
+#include <nova/vec.hh>
 
 #include <ranges>
 
@@ -90,11 +90,9 @@
     };
 }
 
-[[nodiscard]] auto estimate_circle_RANSAC(const auto& points, float threshold, std::size_t iter)
+[[nodiscard]] auto estimate_circle_RANSAC(const auto& points, float threshold, std::size_t iter, std::size_t min_samples, float r_max, float r_min)
         -> nova::Vec3f
 {
-    constexpr auto RMax = 0.32f;
-    constexpr auto RMin = 0.28f;
     const auto points_size = points.size();
     std::size_t best_sample_inlier_num = 0;
     nova::Vec3f best_circle;
@@ -113,9 +111,9 @@
         const auto sample_result = calculate_RANSAC_diffs(points, sample_circle, threshold);
 
         if (sample_result.num_inliers > best_sample_inlier_num
-            && sample_result.num_inliers > 20 // TODO: Magic number
-            && sample_circle.z() < RMax
-            && sample_circle.z() > RMin
+            && sample_result.num_inliers > min_samples
+            && sample_circle.z() < r_max
+            && sample_circle.z() > r_min
         ) {
             best_sample_inlier_num = sample_result.num_inliers;
             best_circle = sample_circle;

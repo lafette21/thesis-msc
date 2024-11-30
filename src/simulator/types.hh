@@ -1,7 +1,7 @@
 #ifndef TYPES_HH
 #define TYPES_HH
 
-#include <nova/vec.h>
+#include <nova/vec.hh>
 #include <fmt/format.h>
 
 #include <fstream>

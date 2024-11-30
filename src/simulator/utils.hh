@@ -5,8 +5,8 @@
 
 #include <gsl/gsl_interp.h>
 #include <gsl/gsl_spline.h>
-#include <nova/utils.h>
-#include <nova/vec.h>
+#include <nova/utils.hh>
+#include <nova/vec.hh>
 #include <range/v3/range/conversion.hpp>
 
 #include <random>

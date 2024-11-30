@@ -5,9 +5,9 @@
 #include "utils.hh"
 
 #include <fmt/chrono.h>
-#include <nova/json.h>
-#include <nova/utils.h>
-#include <nova/vec.h>
+#include <nova/json.hh>
+#include <nova/utils.hh>
+#include <nova/vec.hh>
 
 using json = nova::json;
 
