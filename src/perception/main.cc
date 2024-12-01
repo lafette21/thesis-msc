@@ -8,6 +8,7 @@
 #include <boost/program_options.hpp>
 #include <fmt/chrono.h>
 #include <fmt/format.h>
+#include <range/v3/algorithm.hpp>
 #include <spdlog/spdlog.h>
 
 #include <cstdlib>
@@ -21,6 +22,15 @@ namespace po = boost::program_options;
 using json = nova::json;
 
 
+void validate_format(const std::string& format) {
+    const auto valid_formats = std::vector<std::string>{ "ply", "xyz" };
+
+    if (not ranges::contains(valid_formats, format)) {
+        throw po::validation_error(po::validation_error::invalid_option_value, "format", format);
+    }
+}
+
+
 auto parse_args(int argc, char* argv[])
         -> std::optional<po::variables_map>
 {
@@ -30,6 +40,7 @@ auto parse_args(int argc, char* argv[])
         ("indir,i", po::value<std::string>()->required()->value_name("DIR"), "Input directory (file name format: `test_fn{num}.xyz`)")
         ("start,s", po::value<std::size_t>()->required()->value_name("START"), "Start of the range")
         ("end,e", po::value<std::size_t>()->required()->value_name("END"), "End of the range")
+        ("format,f", po::value<std::string>()->required()->value_name("ply|xyz")->notifier(validate_format)->default_value("ply"), "Output format")
         ("outdir,o", po::value<std::string>()->required()->value_name("DIR")->default_value("out"), "Output directory")
         ("help,h", "Show this help");
 
@@ -62,6 +73,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         const auto from = (*args)["start"].as<std::size_t>();
         const auto to = (*args)["end"].as<std::size_t>();
         const auto out_dir = (*args)["outdir"].as<std::string>();
+        const auto format = (*args)["format"].as<std::string>();
 
         if (not std::filesystem::exists(out_dir)) {
             if (std::filesystem::create_directory(out_dir)) {
@@ -203,19 +215,29 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
                 trafo = trafo * new_trafo;
 
-                pcl::PointCloud<pcl::PointXYZRGB> registered;
+                if (format == "ply") {
+                    pcl::PointCloud<pcl::PointXYZRGB> registered;
 
-                for (const auto& p : curr_points) {
-                    const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
-                    const Eigen::Vector3f ptt = trafo * pt;
-                    registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
+                    for (const auto& p : curr_points) {
+                        const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
+                        const Eigen::Vector3f ptt = trafo * pt;
+                        registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
+                    }
+
+                    for (const auto& p : prev_points) {
+                        registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
+                    }
+
+                    pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", out_dir, idx), registered);
+                } else {
+                    std::ofstream reg(fmt::format("{}/registered-{}.xyz", out_dir, idx));
+
+                    for (const auto& p : curr_points) {
+                        const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
+                        const Eigen::Vector3f ptt = trafo * pt;
+                        reg << ptt.x() << " " << ptt.y() << " " << 0 << "\n";
+                    }
                 }
-
-                for (const auto& p : prev_points) {
-                    registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
-                }
-
-                pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", out_dir, idx), registered);
             } else {
                 pcl::PointCloud<pcl::PointXYZRGB> points;
 
@@ -231,8 +253,15 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             logging::info("Processing took: {}", std::chrono::duration_cast<std::chrono::milliseconds>(nova::now() - start));
         }
 
-        pcl::io::savePLYFile(fmt::format("{}/raw.ply", out_dir), out);
+        if (format == "ply") {
+            pcl::io::savePLYFile(fmt::format("{}/raw.ply", out_dir), out);
+        } else {
+            std::ofstream raw(fmt::format("{}/raw.xyz", out_dir));
 
+            for (const auto& p : out) {
+                raw << p.x << " " << p.y << " " << p.z << "\n";
+            }
+        }
     } catch (const std::exception& ex) {
         logging::error("Fatal error happened: {}", ex.what());
         return EXIT_FAILURE;
