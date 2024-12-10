@@ -15,7 +15,7 @@ target_link_libraries(${EXEC_NAME} PUBLIC
     nova
     range-v3::range-v3
     ${PCL_LIBRARIES}
-    yaml-cpp
+    yaml-cpp::yaml-cpp
 )
 
 code_analysis(${EXEC_NAME} PRIVATE)
