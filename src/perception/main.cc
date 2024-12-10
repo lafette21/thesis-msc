@@ -3,7 +3,7 @@
 #include "types.hh"
 
 #include <nova/io.hh>
-#include <nova/json.hh>
+#include <nova/yaml.hh>
 
 #include <boost/program_options.hpp>
 #include <fmt/chrono.h>
@@ -18,7 +18,7 @@
 
 namespace po = boost::program_options;
 
-using json = nova::json;
+using yaml = nova::yaml;
 
 
 auto parse_args(int argc, char* argv[])
@@ -26,7 +26,7 @@ auto parse_args(int argc, char* argv[])
 {
     auto arg_parser = po::options_description("Perception");
     arg_parser.add_options()
-        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config file")
+        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config YAML file")
         ("indir,i", po::value<std::string>()->required()->value_name("DIR"), "Input directory (file name format: `test_fn{num}.xyz`)")
         ("start,s", po::value<std::size_t>()->required()->value_name("START"), "Start of the range")
         ("end,e", po::value<std::size_t>()->required()->value_name("END"), "End of the range")
@@ -57,7 +57,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             return EXIT_SUCCESS;
         }
 
-        const json config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
+        const yaml config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
         const auto in_dir = (*args)["indir"].as<std::string>();
         const auto from = (*args)["start"].as<std::size_t>();
         const auto to = (*args)["end"].as<std::size_t>();
