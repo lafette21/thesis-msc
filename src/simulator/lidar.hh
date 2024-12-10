@@ -5,16 +5,16 @@
 #include "utils.hh"
 
 #include <fmt/chrono.h>
-#include <nova/json.hh>
 #include <nova/utils.hh>
 #include <nova/vec.hh>
+#include <nova/yaml.hh>
 
-using json = nova::json;
+using yaml = nova::yaml;
 
 
 class lidar {
 public:
-    lidar(const json& config)
+    lidar(const yaml& config)
         : m_config(config)
         , m_ang_res_h(m_config.lookup<float>("rpm.value") / 60 * 360 * m_config.lookup<float>("firing_cycle"))
         , m_angles_hor(nova::linspace(nova::range{ 0.f, m_config.lookup<float>("fov_h") }, static_cast<std::size_t>(m_config.lookup<float>("fov_h") / m_ang_res_h), false))
@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    json m_config;
+    yaml m_config;
     float m_ang_res_h;
     std::vector<float> m_angles_hor;
     std::vector<float> m_angles_ver;

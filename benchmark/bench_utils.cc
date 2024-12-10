@@ -2,8 +2,8 @@
 #include "perception/utils.hh"
 
 #include <nova/io.hh>
-#include <nova/json.hh>
 #include <nova/vec.hh>
+#include <nova/yaml.hh>
 
 #include <benchmark/benchmark.h>
 
@@ -12,52 +12,39 @@
 #include <tuple>
 #include <vector>
 
-using json = nova::json;
+using yaml = nova::yaml;
 
 auto create_config()
-        -> json
+        -> yaml
 {
-    return json(R"json({
-        "downsampling": {
-            "leaf_size": {
-                "x": 0.07,
-                "y": 0.07,
-                "z": 0.07,
-                "_unit": "m"
-            }
-        },
-        "plane_filtering": {
-            "distance_threshold": 0.1,
-            "_unit": "m",
-            "min_inliers": 500
-        },
-        "clustering": {
-            "k_search": 50,
-            "cluster_size": {
-                "max": 1000000,
-                "min": 50
-            },
-            "num_of_neighbours": 30,
-            "smoothness_threshold": 0.314159265,
-            "_unit": "rad",
-            "_comment": "18.f / 180.f * pi",
-            "curvature_threshold": 1.0
-        },
-        "circle_extraction": {
-            "ransac": {
-                "distance_threshold": 0.07,
-                "_unit": "m",
-                "iter": 10000,
-                "min_samples": 20,
-                "r_max": 0.32,
-                "r_min": 0.28
-            }
-        },
-        "pairing": {
-            "distance_threshold": 0.5,
-            "_unit": "m"
-        }
-    })json");
+    return yaml(R"yaml(
+downsampling:
+  enabled: true
+  leaf_size:
+    x: 0.07 # m
+    y: 0.07 # m
+    z: 0.07 # m
+plane_filtering:
+  distance_threshold: 0.1 # m
+  min_inliers: 500
+clustering:
+  k_search: 50
+  cluster_size:
+    max: 1000000
+    min: 50
+  num_of_neighbours: 30
+  smoothness_threshold: 0.314159265 # rad (18.f / 180.f * pi)
+  curvature_threshold: 1
+circle_extraction:
+  ransac:
+    distance_threshold: 0.07 # m
+    iter: 10000
+    min_samples: 20
+    r_max: 0.32 # m
+    r_min: 0.28 # m
+pairing:
+  distance_threshold: 0.5 # m
+    )yaml");
 }
 
 
