@@ -1,0 +1,8 @@
+requirements:
+  - benchmark/1.8.3
+  - boost/1.83.0
+  - fmt/10.2.1
+  - gsl/2.7.1
+  - pcl/1.13.1
+  - range-v3/0.12.0
+  - spdlog/1.13.0
