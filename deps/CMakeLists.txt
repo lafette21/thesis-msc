@@ -1,1 +1,1 @@
-add_subdirectory(nova/include)
+add_subdirectory(nova-cpp/include)

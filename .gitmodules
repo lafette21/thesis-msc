@@ -1,3 +1,3 @@
-[submodule "deps/nova"]
-	path = deps/nova
+[submodule "deps/nova-cpp"]
+	path = deps/nova-cpp
 	url = git@github.com:GK72/nova-cpp.git
