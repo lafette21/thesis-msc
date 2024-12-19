@@ -1,0 +1,26 @@
+simulation:
+  path:
+    num_interp_points: 1001
+  velocity:
+    max: 1 # m/s
+motion:
+  sampling: 4 # Hz
+lidar:
+  vlp_16:
+    channels: 16
+    range: 100 # m
+    fov_v: 30 # deg
+    fov_h: 360 # deg
+    ang_res_v: 2 # deg
+    rotation_rate:
+      min: 5 # Hz
+      max: 20 # Hz
+      value: 20 # Hz
+    rpm:
+      min: 300
+      max: 1200
+      partition_size: 60
+      value: 1200
+    firing_cycle: 5.5296e-05
+    accuracy:
+      value: 0.01 # m
