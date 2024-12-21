@@ -2,6 +2,7 @@
 #include "utils.hh"
 #include "types.hh"
 
+#include <nova/error.hh>
 #include <nova/io.hh>
 #include <nova/yaml.hh>
 
@@ -14,6 +15,7 @@
 #include <chrono>
 #include <filesystem>
 #include <future>
+#include <memory>
 #include <ranges>
 
 namespace po = boost::program_options;
@@ -69,6 +71,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             } else {
                 logging::error("Failed to create directory: {}", out_dir);
             }
+        }
+
+        std::optional<std::random_device::result_type> seed = std::nullopt;
+        try {
+            const auto _seed = config.lookup<std::random_device::result_type>("random.seed");
+            seed = _seed;
+        } catch (const nova::parsing_error&) {
         }
 
         const auto downsampling_enabled = config.lookup<bool>("downsampling.enabled");
@@ -146,7 +155,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
             for (const auto& elem : point_clouds) {
-                futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min));
+                futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min, seed));
             }
 
             std::vector<nova::Vec3f> circle_params;

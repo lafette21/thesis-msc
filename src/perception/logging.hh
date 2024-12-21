@@ -1,6 +1,7 @@
 #ifndef LOGGING_HH
 #define LOGGING_HH
 
+#include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
 namespace logging = spdlog;
@@ -10,6 +11,8 @@ inline auto& init(const std::string& name) {
 
     auto& logger = *spdlog::get(name);
     logger.set_pattern("[%Y-%m-%d %H:%M:%S.%f %z] [%n @%t] %^[%l]%$ %v");
+
+    spdlog::cfg::load_env_levels();
 
     return logger;
 }
