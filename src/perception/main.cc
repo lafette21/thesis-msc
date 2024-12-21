@@ -155,7 +155,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
             for (const auto& elem : point_clouds) {
-                futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min, seed));
+                if (elem.size() >= ce_ransac_min_samples) {
+                    futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min, seed));
+                }
             }
 
             std::vector<nova::Vec3f> circle_params;
