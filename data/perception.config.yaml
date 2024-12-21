@@ -1,3 +1,5 @@
+random:
+  seed: 1
 downsampling:
   enabled: true
   leaf_size:

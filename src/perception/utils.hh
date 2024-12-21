@@ -5,6 +5,7 @@
 #include "ransac.hh"
 #include "types.hh"
 
+#include <nova/random.hh>
 #include <nova/vec.hh>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
@@ -181,7 +182,7 @@
     return ret;
 }
 
-[[nodiscard]] inline auto extract_circle(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, float threshold, std::size_t iter, std::size_t min_samples, float r_max, float r_min)
+[[nodiscard]] inline auto extract_circle(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, float threshold, std::size_t iter, std::size_t min_samples, float r_max, float r_min, std::optional<std::random_device::result_type> seed = std::nullopt)
         -> std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>
 {
     const auto points = cloud
@@ -189,7 +190,7 @@
                       | std::views::filter([](const auto& elem) { return elem != nova::Vec3f { 0, 0, 0 }; })
                       | ranges::to<std::vector>();
 
-    const auto circle_params = estimate_circle_RANSAC(points, threshold, iter, min_samples, r_max, r_min);
+    const auto circle_params = estimate_circle_RANSAC(points, threshold, iter, min_samples, r_max, r_min, seed);
     const auto differences = calculate_RANSAC_diffs(points, circle_params, threshold);
 
     pcl::PointCloud<pcl::PointXYZRGB> circle;
