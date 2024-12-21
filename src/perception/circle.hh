@@ -11,9 +11,20 @@
 #include <nova/vec.hh>
 
 #include <memory>
+#include <optional>
 #include <random>
 #include <ranges>
 
+
+inline nova::rng& random(std::optional<std::random_device::result_type> seed = std::nullopt) {
+    if (seed.has_value()) {
+        static thread_local nova::rng obj{ *seed };
+        return obj;
+    }
+
+    static thread_local nova::rng obj;
+    return obj;
+}
 
 [[nodiscard]] auto estimate_circle_min(const auto& points)
         -> nova::Vec3f
@@ -95,26 +106,18 @@
 [[nodiscard]] auto estimate_circle_RANSAC(const auto& points, float threshold, std::size_t iter, std::size_t min_samples, float r_max, float r_min, std::optional<std::random_device::result_type> seed = std::nullopt)
         -> nova::Vec3f
 {
-    std::unique_ptr<nova::rng> random_ptr;
-    if (seed.has_value()) {
-        random_ptr = std::make_unique<nova::rng>(*seed);
-    } else {
-        random_ptr = std::make_unique<nova::rng>();
-    }
-    auto& random = *random_ptr;
-
     const auto points_size = points.size();
     std::size_t best_sample_inlier_num = 0;
     nova::Vec3f best_circle;
 
-    logging::debug("RANDOM ENGINE SEED: {}", random.seed());
+    logging::debug("RANDOM ENGINE SEED: {}", random(seed).seed());
 
     for (std::size_t i = 0; i < iter; ++i) {
-        const auto p1 = random.choice(points);
-        auto p2 = random.choice(points);
-        while (p1 == p2) { p2 = random.choice(points); }
-        auto p3 = random.choice(points);
-        while (p1 == p3) { p3 = random.choice(points); }
+        const auto p1 = random(seed).choice(points);
+        auto p2 = random(seed).choice(points);
+        while (p1 == p2) { p2 = random(seed).choice(points); }
+        auto p3 = random(seed).choice(points);
+        while (p1 == p3) { p3 = random(seed).choice(points); }
 
         const auto min_sample = std::vector<nova::Vec2f>{ p1, p2, p3 };
         const auto sample_circle = estimate_circle_min(min_sample);

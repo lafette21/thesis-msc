@@ -5,7 +5,6 @@
 #include "ransac.hh"
 #include "types.hh"
 
-#include <nova/random.hh>
 #include <nova/vec.hh>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
@@ -22,6 +21,7 @@
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/range/conversion.hpp>
 
+#include <optional>
 #include <ranges>
 
 
