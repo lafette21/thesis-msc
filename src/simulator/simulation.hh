@@ -10,7 +10,7 @@
 #include "types.hh"
 #include "utils.hh"
 
-#include <nova/json.hh>
+#include <nova/yaml.hh>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/zip.hpp>
@@ -26,12 +26,12 @@
 #include <chrono>
 
 
-using json = nova::json;
+using yaml = nova::yaml;
 
 
 class simulation {
 public:
-    simulation(const json& config, const auto& objects, const auto& path, const std::string& out_dir, const std::string& format)
+    simulation(const yaml& config, const auto& objects, const auto& path, const std::string& out_dir, const std::string& format)
         : m_config(config)
         , m_objects(objects)
         , m_path(path)
@@ -181,7 +181,7 @@ public:
     }
 
 private:
-    json m_config;
+    yaml m_config;
 #ifdef ROS2_BUILD
     std::unique_ptr<rosbag2_cpp::Writer> m_writer;
 #endif

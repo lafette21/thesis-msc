@@ -1,8 +1,8 @@
 #include "simulation.hh"
 
 #include <nova/io.hh>
-#include <nova/json.hh>
 #include <nova/utils.hh>
+#include <nova/yaml.hh>
 
 #include <boost/program_options.hpp>
 #include <range/v3/algorithm.hpp>
@@ -13,7 +13,7 @@
 
 namespace po = boost::program_options;
 
-using json = nova::json;
+using yaml = nova::yaml;
 
 
 void validate_format(const std::string& format) {
@@ -34,7 +34,7 @@ auto parse_args(int argc, char* argv[])
 {
     auto arg_parser = po::options_description("Simulator");
     arg_parser.add_options()
-        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config file")
+        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config YAML file")
         ("map,m", po::value<std::string>()->required()->value_name("FILE"), "Map file")
         ("path,p", po::value<std::string>()->required()->value_name("FILE"), "Path file")
 #ifdef ROS2_BUILD
@@ -79,7 +79,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             }
         }
 
-        const json config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
+        const yaml config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
         const auto objects = nova::read_file<map_parser>(std::filesystem::path((*args)["map"].as<std::string>()).string()).value();
         const auto path = nova::read_file<xyz_parser>(std::filesystem::path((*args)["path"].as<std::string>()).string()).value();
 

@@ -17,6 +17,7 @@ target_link_libraries(${EXEC_NAME} PUBLIC
     ${rclcpp_TARGETS}
     ${rosbag2_cpp_TARGETS}
     ${sensor_msgs_TARGETS}
+    yaml-cpp::yaml-cpp
 )
 
 code_analysis(${EXEC_NAME} PRIVATE)

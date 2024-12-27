@@ -2,8 +2,9 @@
 #include "utils.hh"
 #include "types.hh"
 
+#include <nova/error.hh>
 #include <nova/io.hh>
-#include <nova/json.hh>
+#include <nova/yaml.hh>
 
 #include <boost/program_options.hpp>
 #include <fmt/chrono.h>
@@ -15,11 +16,12 @@
 #include <chrono>
 #include <filesystem>
 #include <future>
+#include <memory>
 #include <ranges>
 
 namespace po = boost::program_options;
 
-using json = nova::json;
+using yaml = nova::yaml;
 
 
 void validate_format(const std::string& format) {
@@ -36,7 +38,7 @@ auto parse_args(int argc, char* argv[])
 {
     auto arg_parser = po::options_description("Perception");
     arg_parser.add_options()
-        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config file")
+        ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config YAML file")
         ("indir,i", po::value<std::string>()->required()->value_name("DIR"), "Input directory (file name format: `test_fn{num}.xyz`)")
         ("start,s", po::value<std::size_t>()->required()->value_name("START"), "Start of the range")
         ("end,e", po::value<std::size_t>()->required()->value_name("END"), "End of the range")
@@ -68,7 +70,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             return EXIT_SUCCESS;
         }
 
-        const json config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
+        const yaml config(nova::read_file(std::filesystem::path((*args)["config"].as<std::string>()).string()).value());
         const auto in_dir = (*args)["indir"].as<std::string>();
         const auto from = (*args)["start"].as<std::size_t>();
         const auto to = (*args)["end"].as<std::size_t>();
@@ -81,6 +83,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             } else {
                 logging::error("Failed to create directory: {}", out_dir);
             }
+        }
+
+        std::optional<std::random_device::result_type> seed = std::nullopt;
+        try {
+            const auto _seed = config.lookup<std::random_device::result_type>("random.seed");
+            seed = _seed;
+        } catch (const nova::parsing_error&) {
         }
 
         const auto downsampling_enabled = config.lookup<bool>("downsampling.enabled");
@@ -158,7 +167,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
             for (const auto& elem : point_clouds) {
-                futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min));
+                if (elem.size() >= ce_ransac_min_samples) {
+                    futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min, seed));
+                }
             }
 
             std::vector<nova::Vec3f> circle_params;
