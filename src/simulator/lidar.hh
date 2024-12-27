@@ -42,6 +42,13 @@ public:
 
         const auto sigma = m_config.lookup<float>("accuracy.value");
 
+        std::optional<std::random_device::result_type> seed = std::nullopt;
+        try {
+            const auto _seed = m_config.lookup<std::random_device::result_type>("random.seed");
+            seed = _seed;
+        } catch (const nova::parsing_error&) {
+        }
+
         for (auto angle_h : m_angles_hor) {
             angle_h = deg2rad(angle_h);
             angle_h += orientation;
@@ -59,7 +66,7 @@ public:
                     std::sin(angle_v)
                 };
 
-                result.push_back(closest_to(m_origin, ray_cast(ray{ m_origin, direction }, primitives, sigma)));
+                result.push_back(closest_to(m_origin, ray_cast(ray{ m_origin, direction }, primitives, sigma, seed)));
             }
         }
 
