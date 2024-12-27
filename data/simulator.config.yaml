@@ -24,3 +24,5 @@ lidar:
     firing_cycle: 5.5296e-05
     accuracy:
       value: 0.01 # m
+    random:
+      seed: 1

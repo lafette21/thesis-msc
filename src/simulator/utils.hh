@@ -14,9 +14,13 @@
 
 
 // TODO(refact): Nova to handle normal_distribution beside uniform
-[[nodiscard]] inline auto random_noise(float sigma) {
+[[nodiscard]] inline auto random_noise(float sigma, std::optional<std::random_device::result_type> seed = std::nullopt) {
     std::random_device rd{};
     std::mt19937 gen{ rd() };
+
+    if (seed.has_value()) {
+        gen.seed(*seed);
+    }
 
     // values near the mean are the most likely
     // standard deviation affects the dispersion of generated values from the mean
@@ -231,17 +235,17 @@ std::optional<hit_record> hit(const sphere& sphere, const ray& r) {
     return ret;
 }
 
-auto distort(const nova::Vec3f& point, const ray& r, float sigma)
+auto distort(const nova::Vec3f& point, const ray& r, float sigma, std::optional<std::random_device::result_type> seed)
         -> nova::Vec3f
 {
     const auto dist = (point - r.origin).length();
-    const auto noise = random_noise(sigma);
+    const auto noise = random_noise(sigma, seed);
     const auto distorted_dist = dist + noise;
 
     return r.origin + r.direction * distorted_dist;
 }
 
-auto ray_cast(const ray& r, const std::vector<primitive>& primitives, float sigma)
+auto ray_cast(const ray& r, const std::vector<primitive>& primitives, float sigma, std::optional<std::random_device::result_type> seed)
         -> std::vector<nova::Vec3f>
 {
     std::vector<nova::Vec3f> ret;
@@ -260,7 +264,7 @@ auto ray_cast(const ray& r, const std::vector<primitive>& primitives, float sigm
             const auto& hit_point = hit_rec->point;
             // Filter out points behind the lidar
             if (nova::dot(hit_point - r.origin, r.direction) >= 0) {
-                ret.push_back(distort(hit_point, r, sigma));
+                ret.push_back(distort(hit_point, r, sigma, seed));
             }
         }
     }
