@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import fnmatch
 import itertools
 import os
 import shlex
@@ -33,6 +34,8 @@ lidar:
     firing_cycle: 5.5296e-05
     accuracy:
       value: __ACCURACY__ # m
+    random:
+      seed: 1
 """
 
 PER_CONFIG = """
@@ -89,18 +92,34 @@ def _gen_all_combinations(d: dict) -> list:
     return ret
 
 
-def replace_all(s: str, d: dict):
+def generate_configs(s: str, d: dict):
     ret = []
     cfgs = _gen_all_combinations(d)
 
     for cfg in cfgs:
+        name = ""
         ss = s
         for k, v in cfg.items():
+            name += f"_{k.lower().strip('__')}_{str(v)}"
             ss = ss.replace(k, str(v), -1)
-        ret.append(ss)
+        name = name[1:]
+        ret.append((name, ss))
 
     return ret
 
+
+def files(folder: str, pattern: str = "*") -> list:
+    # List all files and directories in the specified path
+    entries = os.listdir(folder)
+
+    # Filter out directories if you only want files
+    files = [
+        os.path.realpath(os.path.join(folder, f))
+        for f in entries
+        if os.path.isfile(os.path.join(folder, f)) and fnmatch.fnmatch(f, pattern)
+    ]
+
+    return files
 
 
 def run_command(command: str, shell=False) -> int:
@@ -116,24 +135,56 @@ def run_command(command: str, shell=False) -> int:
 
 
 def main():
-    if len(os.sys.argv) < 3:
-        print(f"Usage: {os.sys.argv[0]} <SIMULATOR_BIN> <PERCEPTION_BIN>")
+    if len(os.sys.argv) < 4:
+        print(f"Usage: {os.sys.argv[0]} <SIMULATOR_BIN> <PERCEPTION_BIN> <WORK_DIR>")
         exit(1)
 
     sim_bin = os.sys.argv[1]
     per_bin = os.sys.argv[2]
+    work_dir = os.sys.argv[3]
+    run_command(f"mkdir -p {work_dir}")
 
     print(f"Simulator: {sim_bin}")
-    print(f"Perception: {per_bin}\n")
+    print(f"Perception: {per_bin}")
+    print(f"Working directory: {work_dir}\n")
 
-    print(f"Using config for simulator:\n```yaml{SIM_CONFIG}```\n")
-    print(f"Using config for perception:\n```yaml{PER_CONFIG}```\n")
+    sim_cfgs = generate_configs(SIM_CONFIG, SIM_PARAMS)
+    per_cfgs = generate_configs(PER_CONFIG, PER_PARAMS)
 
-    #  result = run_command(f"cat <(echo \"{SIM_CONFIG}\") | yq", shell=True)
-    #  print(result.stdout)
+    sim_out_dirs = []
 
-    sim_cfgs = replace_all(SIM_CONFIG, SIM_PARAMS)
-    per_cfgs = replace_all(PER_CONFIG, PER_PARAMS)
+    for name, cfg in sim_cfgs:
+        out_dir = f"{work_dir}/sim_out-{name}"
+        run_command(f"mkdir -p {out_dir}/data")
+
+        with open(f"{out_dir}/sim.cfg.yaml", "w") as of:
+            of.write(cfg.strip())
+
+        sim_out_dirs.append(out_dir)
+        print(f"Output directory: {out_dir}")
+
+        result = run_command(f"{sim_bin} --config {out_dir}/sim.cfg.yaml --map data/maps/garage.map --path data/paths/garage.path --outdir {out_dir}/data")
+        if result.returncode != 0:
+            print("[Simulator] Something went wrong!")
+        break
+
+    for od in sim_out_dirs:
+        end = len(files(f"{od}/data", "test_fn*"))
+
+        for name, cfg in per_cfgs:
+            out_dir = f"{work_dir}/per_out-{od.lstrip(f'{work_dir}/')}-{name}"
+            run_command(f"mkdir -p {out_dir}/data")
+
+            with open(f"{out_dir}/per.cfg.yaml", "w") as of:
+                of.write(cfg.strip())
+
+            print(f"Output directory: {out_dir}")
+
+            result = run_command(f"{per_bin} --config {out_dir}/per.cfg.yaml --indir {od}/data --start 1 --end {end} --outdir {out_dir}/data --format xyz")
+            if result.returncode != 0:
+                print("[Perception] Something went wrong!")
+            break
+        break
 
 
 if __name__ == "__main__":
