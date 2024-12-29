@@ -22,9 +22,10 @@ using yaml = nova::yaml;
 
 class perception {
 public:
-    perception(const yaml& config, std::size_t start, std::size_t end, const std::string& in_dir, const std::string& out_dir)
+    perception(const yaml& config, std::size_t start, std::size_t end, const std::string& in_dir, const std::string& out_dir, const std::string& format)
         : m_config(config)
         , m_out_dir(out_dir)
+        , m_format(format)
     {
         m_clouds.reserve(end - start);
 
@@ -157,19 +158,29 @@ public:
 
                 trafo = trafo * new_trafo;
 
-                pcl::PointCloud<pcl::PointXYZRGB> registered;
+                if (m_format == "ply") {
+                    pcl::PointCloud<pcl::PointXYZRGB> registered;
 
-                for (const auto& p : curr_points) {
-                    const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
-                    const Eigen::Vector3f ptt = trafo * pt;
-                    registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
+                    for (const auto& p : curr_points) {
+                        const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
+                        const Eigen::Vector3f ptt = trafo * pt;
+                        registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
+                    }
+
+                    // for (const auto& p : prev_points) {
+                        // registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
+                    // }
+
+                    pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", m_out_dir, idx), registered);
+                } else {
+                    std::ofstream reg(fmt::format("{}/registered-{}.xyz", m_out_dir, idx));
+
+                    for (const auto& p : curr_points) {
+                        const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
+                        const Eigen::Vector3f ptt = trafo * pt;
+                        reg << ptt.x() << " " << ptt.y() << " " << 0 << "\n";
+                    }
                 }
-
-                for (const auto& p : prev_points) {
-                    registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
-                }
-
-                pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", m_out_dir, idx), registered);
             } else {
                 pcl::PointCloud<pcl::PointXYZRGB> points;
 
@@ -185,12 +196,21 @@ public:
             logging::info("Processing took: {}", std::chrono::duration_cast<std::chrono::milliseconds>(nova::now() - start));
         }
 
-        pcl::io::savePLYFile(fmt::format("{}/raw.ply", m_out_dir), out);
+        if (m_format == "ply") {
+            pcl::io::savePLYFile(fmt::format("{}/raw.ply", m_out_dir), out);
+        } else {
+            std::ofstream raw(fmt::format("{}/raw.xyz", m_out_dir));
+
+            for (const auto& p : out) {
+                raw << p.x << " " << p.y << " " << 0 << "\n";
+            }
+        }
     }
 
 private:
     yaml m_config;
     std::string m_out_dir;
+    std::string m_format;
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>> m_clouds;
 };
 
