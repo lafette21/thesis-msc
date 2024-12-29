@@ -5,6 +5,7 @@
 #include "ransac.hh"
 #include "types.hh"
 
+#include <boost/circular_buffer.hpp>
 #include <nova/vec.hh>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
@@ -21,6 +22,7 @@
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/range/conversion.hpp>
 
+#include <cmath>
 #include <optional>
 #include <ranges>
 
@@ -248,6 +250,58 @@
     }
 
     return { ret_a, ret_b };
+}
+
+[[nodiscard]] inline auto conv_pts_to_same_size_mx(const pcl::PointCloud<pcl::PointXYZRGB>& points_A, const pcl::PointCloud<pcl::PointXYZRGB>& points_B)
+     -> std::pair<Eigen::MatrixXf, Eigen::MatrixXf>
+{
+    const auto min_size = std::min(std::size(points_A), std::size(points_B));
+
+    Eigen::MatrixXf A = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
+    Eigen::MatrixXf B = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
+
+    for (std::size_t i = 0; i < min_size; ++i) {
+        A(0, static_cast<int>(i)) = points_A[i].x;
+        A(1, static_cast<int>(i)) = points_A[i].y;
+
+        B(0, static_cast<int>(i)) = points_B[i].x;
+        B(1, static_cast<int>(i)) = points_B[i].y;
+    }
+
+    return { A, B };
+}
+
+[[nodiscard]] inline auto extract_consistent_points(const boost::circular_buffer<pcl::PointCloud<pcl::PointXYZRGB>>& buffer, std::size_t min_occurrence, float threshold)
+        -> pcl::PointCloud<pcl::PointXYZRGB>
+{
+    pcl::PointCloud<pcl::PointXYZRGB> ret;
+    const pcl::PointCloud<pcl::PointXYZRGB>& last = buffer.back();
+
+    for (const auto& p : last) {
+        std::size_t count = 1;
+
+        for (std::size_t i = 0; i < buffer.size() - 1; ++i) {
+            const auto& cloud = buffer[i];
+
+            const auto predicate = [&p, threshold](const auto& elem) {
+                const auto dist = std::sqrt(std::pow(p.x - elem.x, 2) + std::pow(p.y - elem.y, 2));
+                logging::debug("x1={}, y1={}, x2={}, y2={}, dist={}", p.x, p.y, elem.x, elem.y, dist);
+                return dist <= static_cast<double>(threshold);
+            };
+
+            const auto it = std::ranges::find_if(cloud, predicate);
+
+            if (it != std::end(cloud)) {
+                count += 1;
+            }
+        }
+
+        if (count >= min_occurrence) {
+            ret.push_back(p);
+        }
+    }
+
+    return ret;
 }
 
 #endif // UTILS_HH
