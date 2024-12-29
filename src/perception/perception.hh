@@ -5,6 +5,7 @@
 #include "types.hh"
 #include "utils.hh"
 
+#include <boost/circular_buffer.hpp>
 #include <fmt/chrono.h>
 #include <nova/error.hh>
 #include <nova/io.hh>
@@ -26,7 +27,10 @@ public:
         : m_config(config)
         , m_out_dir(out_dir)
         , m_format(format)
+        , m_spat_cons_buff(m_config.lookup<std::size_t>("spatial_consistency.buff_capacity"))
     {
+        logging::info("Spatial consistency buffer capacity: {}", m_spat_cons_buff.capacity());
+
         m_clouds.reserve(end - start + 1);
 
         logging::info("Reading cloud(s)");
@@ -69,6 +73,8 @@ public:
         const auto ce_ransac_r_max = m_config.lookup<float>("circle_extraction.ransac.r_max");
         const auto ce_ransac_r_min = m_config.lookup<float>("circle_extraction.ransac.r_min");
         const auto pairing_dist_threshold = m_config.lookup<float>("pairing.distance_threshold");
+        const auto spat_cons_min_occurrence = m_config.lookup<std::size_t>("spatial_consistency.min_occurrence");
+        const auto spat_cons_threshold = m_config.lookup<float>("spatial_consistency.threshold");
 
         logging::info("Processing cloud(s)");
 
@@ -158,27 +164,31 @@ public:
 
                 trafo = trafo * new_trafo;
 
-                if (m_format == "ply") {
-                    pcl::PointCloud<pcl::PointXYZRGB> registered;
+                pcl::PointCloud<pcl::PointXYZRGB> registered;
 
-                    for (const auto& p : curr_points) {
-                        const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
-                        const Eigen::Vector3f ptt = trafo * pt;
-                        registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
-                    }
+                for (const auto& p : curr_points) {
+                    const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
+                    const Eigen::Vector3f ptt = trafo * pt;
+                    registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
+                }
 
-                    // for (const auto& p : prev_points) {
-                        // registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
-                    // }
+                // for (const auto& p : prev_points) {
+                    // registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
+                // }
 
-                    pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", m_out_dir, idx), registered);
-                } else {
-                    std::ofstream reg(fmt::format("{}/registered-{}.xyz", m_out_dir, idx));
+                m_spat_cons_buff.push_back(registered);
 
-                    for (const auto& p : curr_points) {
-                        const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
-                        const Eigen::Vector3f ptt = trafo * pt;
-                        reg << ptt.x() << " " << ptt.y() << " " << 0 << "\n";
+                if (m_spat_cons_buff.size() >= spat_cons_min_occurrence) {
+                    const auto important_points = extract_consistent_points(m_spat_cons_buff, spat_cons_min_occurrence, spat_cons_threshold);
+
+                    if (m_format == "ply") {
+                        pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", m_out_dir, idx + 1), important_points);
+                    } else {
+                        std::ofstream reg(fmt::format("{}/registered-{}.xyz", m_out_dir, idx + 1));
+
+                        for (const auto& p : important_points) {
+                            reg << p.x << " " << p.y << " " << 0 << "\n";
+                        }
                     }
                 }
             } else {
@@ -188,6 +198,7 @@ public:
                     points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
                 }
 
+                m_spat_cons_buff.push_back(points);
                 out += points;
             }
 
@@ -211,6 +222,7 @@ private:
     yaml m_config;
     std::string m_out_dir;
     std::string m_format;
+    boost::circular_buffer<pcl::PointCloud<pcl::PointXYZRGB>> m_spat_cons_buff;
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>> m_clouds;
 };
 
