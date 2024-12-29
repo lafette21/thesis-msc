@@ -27,11 +27,11 @@ public:
         , m_out_dir(out_dir)
         , m_format(format)
     {
-        m_clouds.reserve(end - start);
+        m_clouds.reserve(end - start + 1);
 
         logging::info("Reading cloud(s)");
 
-        for (std::size_t i = start; i < end; ++i) {
+        for (std::size_t i = start; i <= end; ++i) {
             const auto cloud = nova::read_file<lidar_data_parser>(
                 (std::filesystem::path(in_dir) / fmt::format("test_fn{}.xyz", i)).string()
             ).value();
