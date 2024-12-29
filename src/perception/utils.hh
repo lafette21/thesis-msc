@@ -250,4 +250,23 @@
     return { ret_a, ret_b };
 }
 
+[[nodiscard]] inline auto conv_pts_to_same_size_mx(const pcl::PointCloud<pcl::PointXYZRGB>& prev_points, const pcl::PointCloud<pcl::PointXYZRGB>& curr_points)
+     -> std::pair<Eigen::MatrixXf, Eigen::MatrixXf>
+{
+    const auto min_size = std::min(std::size(prev_points), std::size(curr_points));
+
+    Eigen::MatrixXf A = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
+    Eigen::MatrixXf B = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
+
+    for (std::size_t i = 0; i < min_size; ++i) {
+        A(0, static_cast<int>(i)) = prev_points[i].x;
+        A(1, static_cast<int>(i)) = prev_points[i].y;
+
+        B(0, static_cast<int>(i)) = curr_points[i].x;
+        B(1, static_cast<int>(i)) = curr_points[i].y;
+    }
+
+    return { A, B };
+}
+
 #endif // UTILS_HH

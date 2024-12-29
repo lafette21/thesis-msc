@@ -148,19 +148,7 @@ public:
 
                 out += curr_points;
 
-                const auto min_size = std::min(std::size(prev_points), std::size(curr_points));
-
-                Eigen::MatrixXf A = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
-                Eigen::MatrixXf B = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
-
-                for (std::size_t i = 0; i < min_size; ++i) {
-                    A(0, static_cast<int>(i)) = prev_points[i].x;
-                    A(1, static_cast<int>(i)) = prev_points[i].y;
-
-                    B(0, static_cast<int>(i)) = curr_points[i].x;
-                    B(1, static_cast<int>(i)) = curr_points[i].y;
-                }
-
+                const auto [A, B] = conv_pts_to_same_size_mx(prev_points, curr_points);
                 const auto new_trafo_tmp = rigid_transform_2D(B, A);
 
                 Eigen::Matrix3f new_trafo = Eigen::Matrix3f::Identity();
