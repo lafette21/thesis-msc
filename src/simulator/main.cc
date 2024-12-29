@@ -88,7 +88,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         simulation.start();
 
         return EXIT_SUCCESS;
-
     } catch (const std::exception& ex) {
         logging::error("Fatal error happened: {}", ex.what());
         return EXIT_FAILURE;
