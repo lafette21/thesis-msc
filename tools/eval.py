@@ -15,6 +15,9 @@ class Vec2f:
     def __str__(self):
         return f"Vec2f(x={self.x}, y={self.y})"
 
+    def __add__(self, other):
+        return Vec2f(self.x + other.x, self.y + other.y)
+
     def __sub__(self, other):
         return Vec2f(self.x - other.x, self.y - other.y)
 
@@ -75,7 +78,7 @@ def points_out_of_range(ref: List[Vec2f], points: List[Vec2f], threshold: float)
     return ret
 
 
-def eval_file(file_path: str, ref: List[Vec2f]):
+def eval_file(file_path: str, ref: List[Vec2f], origin: Vec2f):
     with open(file_path, "r") as inf:
         data = inf.readlines()
 
@@ -83,7 +86,7 @@ def eval_file(file_path: str, ref: List[Vec2f]):
 
     for line in data:
         p = line.strip().split()
-        points.append(Vec2f(float(p[0]), float(p[1])))
+        points.append(Vec2f(float(p[0]), float(p[1])) + origin)
 
     paired = pair_with_ref(ref, points, threshold=0.5)
     out_of_range = points_out_of_range(ref, points, threshold=0.5)
@@ -92,8 +95,8 @@ def eval_file(file_path: str, ref: List[Vec2f]):
 
 
 def main():
-    if len(os.sys.argv) != 3:
-        print(f"Usage: {os.sys.argv[0]} <REFERENCE> <INPUT_DIR>")
+    if len(os.sys.argv) != 4:
+        print(f"Usage: {os.sys.argv[0]} <REFERENCE> <PATH> <INPUT_DIR>")
         exit(1)
 
     ref = []
@@ -107,8 +110,19 @@ def main():
         d = d.split()
         ref.append(Vec2f(float(d[1]), float(d[2])))
 
-    for path in files(os.sys.argv[2], "registered-*"):
-        eval_file(path, ref)
+    path = []
+
+    with open(os.sys.argv[2], "r") as inf:
+        data = inf.readlines()
+
+    for d in data:
+        d = d.split()
+        path.append(Vec2f(float(d[0]), float(d[1])))
+
+    origin = path[0]
+
+    for file_path in files(os.sys.argv[3], "registered-*"):
+        eval_file(file_path, ref, origin)
 
 
 if __name__ == "__main__":
