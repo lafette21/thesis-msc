@@ -17,7 +17,6 @@
 #include <random>
 #include <string>
 
-
 using yaml = nova::yaml;
 
 
