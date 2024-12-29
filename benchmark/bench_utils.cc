@@ -8,6 +8,7 @@
 #include <benchmark/benchmark.h>
 
 #include <future>
+#include <random>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -47,6 +48,8 @@ pairing:
     )yaml");
 }
 
+// static constexpr auto Seed = std::optional<std::random_device::result_type>{ 1 };
+static constexpr auto Seed = std::nullopt;
 
 static void bench_downsample_sim(benchmark::State& state) {
     const auto config = create_config();
@@ -284,7 +287,7 @@ static void bench_extract_circles_par_sim(benchmark::State& state) {
         std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
         for (const auto& elem : point_clouds) {
-            futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min));
+            futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min, Seed));
         }
 
         for (auto& f : futures) {
@@ -321,7 +324,7 @@ static void bench_extract_circles_par_real(benchmark::State& state) {
         std::vector<std::future<std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>>> futures;
 
         for (const auto& elem : point_clouds) {
-            futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min));
+            futures.push_back(std::async(extract_circle, elem, ce_ransac_threshold, ce_ransac_iter, ce_ransac_min_samples, ce_ransac_r_max, ce_ransac_r_min, Seed));
         }
 
         for (auto& f : futures) {
