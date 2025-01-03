@@ -3,6 +3,7 @@
 import fnmatch
 import math
 import os
+import re
 
 from typing import List, Tuple
 
@@ -66,19 +67,22 @@ def points_out_of_range(ref: List[Vec2f], points: List[Vec2f], threshold: float)
     for p in points:
         out = True
         min_dist = float(math.inf)
+        closest_r = None
         for r in ref:
             dist = (r - p).length()
             if dist <= threshold:
                 out = False
             elif dist <= min_dist:
                 min_dist = dist
+                closest_r = r
         if out:
-            ret.append((p, min_dist))
+            ret.append((closest_r, p))
 
     return ret
 
 
 def eval_file(file_path: str, ref: List[Vec2f], origin: Vec2f):
+    print(f"Processing file: {file_path}")
     with open(file_path, "r") as inf:
         data = inf.readlines()
 
@@ -90,8 +94,8 @@ def eval_file(file_path: str, ref: List[Vec2f], origin: Vec2f):
 
     paired = pair_with_ref(ref, points, threshold=0.5)
     out_of_range = points_out_of_range(ref, points, threshold=0.5)
-    for p, d in out_of_range:
-        print(f"{p}\tdist: {d}")
+
+    return paired, out_of_range
 
 
 def main():
@@ -121,9 +125,31 @@ def main():
 
     origin = path[0]
 
-    for file_path in files(os.sys.argv[3], "registered-*"):
-        eval_file(file_path, ref, origin)
+    file_path_list = files(os.sys.argv[3], "registered-*")
+    file_path_list.sort(key=lambda x: int(re.sub(".*registered-", "", x).rstrip(".xyz")))
 
+    paired_list = []
+    out_of_range_list = []
+
+    dist_sum = lambda l: sum((r - p).length() for r, p in l)
+
+    for file_path in file_path_list:
+        paired, out_of_range = eval_file(file_path, ref, origin)
+        if len(paired) > 0 or len(out_of_range) > 0:
+            print(f"Success ratio: {len(paired) / (len(paired) + len(out_of_range))}\tFail ratio: {len(out_of_range) / (len(paired) + len(out_of_range))}")
+        if len(paired) > 0:
+            print(f"Avg in range distance: {dist_sum(paired) / len(paired)}")
+        if len(out_of_range) > 0:
+            print(f"Avg out of range distance: {dist_sum(out_of_range) / len(out_of_range)}")
+        paired_list.append(paired)
+        out_of_range_list.append(out_of_range)
+
+    flat_paired = [item for sublist in paired_list for item in sublist]
+    flat_out_of_range = [item for sublist in out_of_range_list for item in sublist]
+
+    print(f"Number of points in range: {len(flat_paired)}\tAvg in range distance: {dist_sum(flat_paired) / len(flat_paired)}")
+    print(f"Number of points out of range : {len(flat_out_of_range)}\tAvg out of range distance: {dist_sum(flat_out_of_range) / len(flat_out_of_range)}")
+    print(f"Number of points: {len(flat_paired + flat_out_of_range)}\tAvg distance: {dist_sum(flat_paired + flat_out_of_range) / len(flat_paired + flat_out_of_range)}")
 
 if __name__ == "__main__":
     main()

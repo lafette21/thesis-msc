@@ -67,6 +67,10 @@ circle_extraction:
     r_min: 0.28 # m
 pairing:
   distance_threshold: 0.5 # m
+spatial_consistency:
+  buff_capacity: 3
+  min_occurrence: 2
+  threshold: 0.5
 """
 
 
@@ -183,6 +187,8 @@ def main():
             result = run_command(f"{per_bin} --config {out_dir}/per.cfg.yaml --indir {od}/data --start 1 --end {end} --outdir {out_dir}/data --format xyz")
             if result.returncode != 0:
                 print("[Perception] Something went wrong!")
+                print(f"[Perception] STDOUT:\n{result.stdout}")
+                print(f"[Perception] STDERR:\n{result.stderr}")
             break
         break
 
