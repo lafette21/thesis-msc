@@ -3,6 +3,9 @@ build/
 
 compile_commands.json
 
+# Python
+__pycache__/
+
 # Prerequisites
 *.d
 
