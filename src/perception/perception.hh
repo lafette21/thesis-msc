@@ -13,6 +13,7 @@
 #include <nova/yaml.hh>
 #include <range/v3/view.hpp>
 
+#include <chrono>
 #include <future>
 #include <optional>
 #include <random>
@@ -81,6 +82,8 @@ public:
         pcl::PointCloud<pcl::PointXYZRGB> out;
         std::vector<nova::Vec3f> prev_circle_params;
         Eigen::Matrix3f trafo = Eigen::Matrix3f::Identity();
+        std::vector<std::chrono::milliseconds> processing_times;
+        processing_times.reserve(m_clouds.size());
 
         for (const auto& [idx, cloud] : ranges::views::enumerate(m_clouds)) {
             logging::debug("Cloud size: {}", cloud.size());
@@ -204,7 +207,9 @@ public:
 
             prev_circle_params = circle_params;
 
-            logging::info("Processing took: {}", std::chrono::duration_cast<std::chrono::milliseconds>(nova::now() - start));
+            const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(nova::now() - start);
+            processing_times.push_back(duration);
+            logging::info("Processing took: {}", duration);
         }
 
         if (m_format == "ply") {
@@ -216,6 +221,16 @@ public:
                 raw << p.x << " " << p.y << " " << 0 << "\n";
             }
         }
+
+        std::ofstream stats(fmt::format("{}/stats.json", m_out_dir));
+
+        stats << "{ \"processingTimesMs\": { \"1\": " << processing_times[0].count();
+
+        for (std::size_t i = 1; i < processing_times.size(); ++i) {
+            stats << ", \"" << i + 1 << "\": " << processing_times[i].count();
+        }
+
+        stats << " } }";
     }
 
 private:

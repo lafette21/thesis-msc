@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import logging
 import os
 import pandas as pd
+import re
 import traceback
 
 import utils
@@ -186,15 +188,27 @@ def main():
             "file": [],
             "success_ratio": [],
             "fail_ratio": [],
+            "gt_ratio": [],
             "avg_in_range_dist": [],
             "avg_out_of_range_dist": [],
+            "processing_time_ms": [],
         }
+
+        with open(f"{k}/data/stats.json", "r") as inf:
+            stats = json.load(inf)
 
         for file, paired, out_of_range in zip(*v):
             data["file"].append(file)
+            idx = re.sub(".*registered-", '', file).rstrip(".xyz")
             if len(paired) > 0 or len(out_of_range) > 0:
                 data["success_ratio"].append(len(paired) / (len(paired) + len(out_of_range)))
                 data["fail_ratio"].append(len(out_of_range) / (len(paired) + len(out_of_range)))
+                data["gt_ratio"].append(len(paired) / len(ref_points))
+                # TODO: There is a case where during clustering one cylinder is split into two and hence recognized as two cylinders
+                #  if len(paired) / len(ref_points) > 1:
+                    #  for r, p in paired:
+                        #  print(p)
+                    #  break
             else:
                 data["success_ratio"].append("NaN")
                 data["fail_ratio"].append("NaN")
@@ -206,6 +220,7 @@ def main():
                 data["avg_out_of_range_dist"].append(dist_sum(out_of_range) / len(out_of_range))
             else:
                 data["avg_out_of_range_dist"].append("NaN")
+            data["processing_time_ms"].append(stats["processingTimesMs"][idx])
         df = pd.DataFrame(data)
         df.to_excel(f"{k}.xlsx", index=False)
 

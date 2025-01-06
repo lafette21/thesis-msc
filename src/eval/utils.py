@@ -175,7 +175,7 @@ def run_simulator(sim_bin, work_dir, map, path, sim_cfg, sim_params, logger):
             logger.error("[Simulator] Something went wrong!")
             logger.error(f"[Simulator] STDOUT:\n{result.stdout}")
             logger.error(f"[Simulator] STDERR:\n{result.stderr}")
-        break   # TODO: Remove
+        #  break   # TODO: Remove
 
     return sim_out_dirs
 
@@ -204,8 +204,8 @@ def run_perception(per_bin, work_dir, sim_out_dirs, per_cfg, per_params, logger)
                 logger.error("[Perception] Something went wrong!")
                 logger.error(f"[Perception] STDOUT:\n{result.stdout}")
                 logger.error(f"[Perception] STDERR:\n{result.stderr}")
-            break   # TODO: Remove
-        break   # TODO: Remove
+            #  break   # TODO: Remove
+        #  break   # TODO: Remove
 
     return per_out_dirs
 
