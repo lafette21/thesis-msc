@@ -212,6 +212,7 @@ def main():
             else:
                 data["success_ratio"].append("NaN")
                 data["fail_ratio"].append("NaN")
+                data["gt_ratio"].append("NaN")
             if len(paired) > 0:
                 data["avg_in_range_dist"].append(dist_sum(paired) / len(paired))
             else:

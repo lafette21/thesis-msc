@@ -45,6 +45,12 @@ circle_extraction:
     r_min: 0.28 # m
 pairing:
   distance_threshold: 0.5 # m
+spatial_consistency:
+  buff_capacity: 3
+  min_occurrence: 2
+  threshold: 0.5
+input_sampling_rate: 4 # Hz
+initial_velocity: 1.0 # m/s
     )yaml");
 }
 
