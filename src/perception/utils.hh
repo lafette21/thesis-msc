@@ -213,20 +213,33 @@
     };
 }
 
-[[nodiscard]] inline auto pairing(const std::vector<nova::Vec3f>& params_a, const std::vector<nova::Vec3f>& params_b, float threshold)
+[[nodiscard]] inline auto pairing(
+    const std::vector<nova::Vec3f>& curr,
+    const std::vector<nova::Vec3f>& prev,
+    float threshold,
+    float input_sampling_rate,
+    float velocity,
+    float orientation
+)
         -> std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>>
 {
     std::vector<nova::Vec3f> ret_a;
     std::vector<nova::Vec3f> ret_b;
     std::vector<std::vector<float>> dist_mx;
 
-    for (const auto& a : params_a) {
+    // Predict movement based on velocity
+    float delta_time = 1.f / input_sampling_rate;
+    float delta_x = velocity * delta_time * std::cos(orientation);
+    float delta_y = velocity * delta_time * std::sin(orientation);
+
+    for (const auto& a : curr) {
         dist_mx.emplace_back(std::vector<float>{});
         auto& vec = dist_mx.back();
         const auto& c_a = nova::Vec2f{ a.x(), a.y() };
 
-        for (const auto& b : params_b) {
-            const auto& c_b = nova::Vec2f{ b.x(), b.y() };
+        for (const auto& b : prev) {
+            const auto predicted_pos = b + nova::Vec3f{ delta_x, delta_y, 0 };
+            const auto c_b = nova::Vec2f{ predicted_pos.x(), predicted_pos.y() };
             vec.push_back((c_a - c_b).length());
         }
     }
@@ -243,9 +256,9 @@
         const auto idx_b = std::distance(vec.begin(), std::ranges::find(vec, min));
 
         if (min < threshold) {
-            ret_a.push_back(params_a[idx]);
-            ret_b.push_back(params_b[idx_b]);
-            logging::debug("({}, {})\t({}, {})\tdist: {}", params_a[idx].x(), params_a[idx].y(), params_b[idx_b].x(), params_b[idx_b].y(), min);
+            ret_a.push_back(curr[idx]);
+            ret_b.push_back(prev[idx_b]);
+            logging::debug("({}, {})\t({}, {})\tdist: {}", curr[idx].x(), curr[idx].y(), prev[idx_b].x(), prev[idx_b].y(), min);
         }
     }
 
