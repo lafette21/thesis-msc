@@ -76,7 +76,9 @@ pairing:
 spatial_consistency:
   buff_capacity: 3
   min_occurrence: 2
-  threshold: 0.5
+  distance_threshold: 0.5
+input_sampling_rate: 4 # Hz
+initial_velocity: __INITIAL_VELOCITY__ # m/s
 """
 
 
@@ -86,7 +88,7 @@ SIM_PARAMS = {
 }
 
 PER_PARAMS = {
-
+    "__INITIAL_VELOCITY__": [2],
 }
 
 
