@@ -40,18 +40,20 @@ public:
         , m_format(format)
     {
 #ifdef ROS2_BUILD
-        m_writer = std::make_unique<rosbag2_cpp::Writer>();
+        if (m_format == "rosbag2") {
+            m_writer = std::make_unique<rosbag2_cpp::Writer>();
 
-        rosbag2_storage::StorageOptions storage_options;
-        storage_options.uri = fmt::format("{}/out.bag", m_out_dir);
-        storage_options.storage_id = "sqlite3";
-        m_writer->open(storage_options);
+            rosbag2_storage::StorageOptions storage_options;
+            storage_options.uri = fmt::format("{}/out.bag", m_out_dir);
+            storage_options.storage_id = "sqlite3";
+            m_writer->open(storage_options);
 
-        rosbag2_storage::TopicMetadata topic_metadata;
-        topic_metadata.name = "/lidar";
-        topic_metadata.type = "sensor_msgs/msg/PointCloud";
-        topic_metadata.serialization_format = "cdr";
-        m_writer->create_topic(topic_metadata);
+            rosbag2_storage::TopicMetadata topic_metadata;
+            topic_metadata.name = "/lidar";
+            topic_metadata.type = "sensor_msgs/msg/PointCloud";
+            topic_metadata.serialization_format = "cdr";
+            m_writer->create_topic(topic_metadata);
+        }
 #endif
     }
 
@@ -145,7 +147,7 @@ public:
                             | ranges::to<std::vector>();
 
 #ifdef ROS2_BUILD
-            if (m_format == "rosbag") {
+            if (m_format == "rosbag2") {
                 auto msg = std::make_shared<sensor_msgs::msg::PointCloud>();
 
                 msg->header.stamp = ts;
