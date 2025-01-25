@@ -19,6 +19,8 @@ auto create_config()
         -> yaml
 {
     return yaml(R"yaml(
+random:
+  seed: 1
 downsampling:
   enabled: true
   leaf_size:
@@ -48,7 +50,7 @@ pairing:
 spatial_consistency:
   buff_capacity: 3
   min_occurrence: 2
-  threshold: 0.5
+  distance_threshold: 0.5
 input_sampling_rate: 4 # Hz
 initial_velocity: 1.0 # m/s
     )yaml");
