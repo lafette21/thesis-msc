@@ -9,11 +9,6 @@
 #include <string>
 
 
-struct trafo_2d {
-    Eigen::Matrix2f R;
-    Eigen::Vector2f t;
-};
-
 struct lidar_data_parser {
     [[nodiscard]] pcl::PointCloud<pcl::PointXYZRGB> operator()(std::istream& iF) {
         pcl::PointCloud<pcl::PointXYZRGB> result;

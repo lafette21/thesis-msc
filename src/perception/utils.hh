@@ -5,7 +5,6 @@
 #include "ransac.hh"
 #include "types.hh"
 
-#include <boost/circular_buffer.hpp>
 #include <nova/vec.hh>
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
@@ -19,7 +18,6 @@
 #include <pcl/search/search.h>
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/segmentation/sac_segmentation.h>
-#include <range/v3/view/enumerate.hpp>
 #include <range/v3/range/conversion.hpp>
 
 #include <cmath>
@@ -130,60 +128,6 @@
     return ret;
 }
 
-/*
- * @brief   Finding optimal rotation and translation between corresponding 2D points
- *
- * https://nghiaho.com/?page_id=671
- * https://github.com/nghiaho12/rigid_transform_3D/blob/master/rigid_transform_3D.py
- *
- */
-[[nodiscard]] inline auto rigid_transform_2D(const Eigen::MatrixXf& A, const Eigen::MatrixXf& B)
-        -> trafo_2d
-{
-    assert(A.rows() == B.rows() and A.cols() == B.cols());
-
-    if (A.rows() != 2) {
-        throw std::runtime_error("Matrix A is not 2xN!");
-    }
-
-    if (B.rows() != 2) {
-        throw std::runtime_error("Matrix B is not 2xN!");
-    }
-
-    trafo_2d ret;
-
-    // Compute centroids of A and B
-    const Eigen::Vector2f centroid_A = A.rowwise().mean();
-    const Eigen::Vector2f centroid_B = B.rowwise().mean();
-
-    // Subtract centroids to center the points
-    const Eigen::MatrixXf Am = A.colwise() - centroid_A;
-    const Eigen::MatrixXf Bm = B.colwise() - centroid_B;
-
-    // Compute the covariance matrix
-    const Eigen::Matrix2f H = Am * Bm.transpose();
-
-    // Perform SVD on the covariance matrix H
-    Eigen::JacobiSVD<Eigen::Matrix2f> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
-
-    // Calculate the rotation matrix
-    const Eigen::Matrix2f Ut = svd.matrixU().transpose();
-    Eigen::Matrix2f V = svd.matrixV();
-
-    ret.R = V * Ut;
-
-    // Handle the special case for reflection
-    if (ret.R.determinant() < 0) {
-        V.col(1) *= -1;
-        ret.R = V * Ut;
-    }
-
-    // Calculate the translation vector
-    ret.t = -ret.R * centroid_A + centroid_B;
-
-    return ret;
-}
-
 [[nodiscard]] inline auto extract_circle(const pcl::PointCloud<pcl::PointXYZRGB>& cloud, float threshold, std::size_t iter, std::size_t min_samples, float r_max, float r_min, std::optional<std::random_device::result_type> seed = std::nullopt)
         -> std::tuple<nova::Vec3f, pcl::PointCloud<pcl::PointXYZRGB>, std::vector<nova::Vec2f>>
 {
@@ -211,110 +155,6 @@
         circle,
         rest
     };
-}
-
-[[nodiscard]] inline auto pairing(
-    const std::vector<nova::Vec3f>& curr,
-    const std::vector<nova::Vec3f>& prev,
-    float threshold,
-    float input_sampling_rate,
-    float velocity,
-    float orientation
-)
-        -> std::pair<std::vector<nova::Vec3f>, std::vector<nova::Vec3f>>
-{
-    std::vector<nova::Vec3f> ret_a;
-    std::vector<nova::Vec3f> ret_b;
-    std::vector<std::vector<float>> dist_mx;
-
-    // Predict movement based on velocity
-    float delta_time = 1.f / input_sampling_rate;
-    float delta_x = velocity * delta_time * std::cos(orientation);
-    float delta_y = velocity * delta_time * std::sin(orientation);
-
-    for (const auto& a : curr) {
-        dist_mx.emplace_back(std::vector<float>{});
-        auto& vec = dist_mx.back();
-        const auto& c_a = nova::Vec2f{ a.x(), a.y() };
-
-        for (const auto& b : prev) {
-            const auto predicted_pos = b + nova::Vec3f{ delta_x, delta_y, 0 };
-            const auto c_b = nova::Vec2f{ predicted_pos.x(), predicted_pos.y() };
-            vec.push_back((c_a - c_b).length());
-        }
-    }
-
-    // for (const auto& vec : dist_mx) {
-        // for (const auto& elem : vec) {
-            // std::cout << elem << ", ";
-        // }
-        // std::cout << std::endl;
-    // }
-
-    for (const auto& [idx, vec] : ranges::views::enumerate(dist_mx)) {
-        const auto& min = std::ranges::min(vec);
-        const auto idx_b = std::distance(vec.begin(), std::ranges::find(vec, min));
-
-        if (min < threshold) {
-            ret_a.push_back(curr[idx]);
-            ret_b.push_back(prev[idx_b]);
-            logging::debug("({}, {})\t({}, {})\tdist: {}", curr[idx].x(), curr[idx].y(), prev[idx_b].x(), prev[idx_b].y(), min);
-        }
-    }
-
-    return { ret_a, ret_b };
-}
-
-[[nodiscard]] inline auto conv_pts_to_same_size_mx(const pcl::PointCloud<pcl::PointXYZRGB>& points_A, const pcl::PointCloud<pcl::PointXYZRGB>& points_B)
-     -> std::pair<Eigen::MatrixXf, Eigen::MatrixXf>
-{
-    const auto min_size = std::min(std::size(points_A), std::size(points_B));
-
-    Eigen::MatrixXf A = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
-    Eigen::MatrixXf B = Eigen::MatrixXf::Zero(2, static_cast<int>(min_size));
-
-    for (std::size_t i = 0; i < min_size; ++i) {
-        A(0, static_cast<int>(i)) = points_A[i].x;
-        A(1, static_cast<int>(i)) = points_A[i].y;
-
-        B(0, static_cast<int>(i)) = points_B[i].x;
-        B(1, static_cast<int>(i)) = points_B[i].y;
-    }
-
-    return { A, B };
-}
-
-[[nodiscard]] inline auto extract_consistent_points(const boost::circular_buffer<pcl::PointCloud<pcl::PointXYZRGB>>& buffer, std::size_t min_occurrence, float threshold)
-        -> pcl::PointCloud<pcl::PointXYZRGB>
-{
-    pcl::PointCloud<pcl::PointXYZRGB> ret;
-    const pcl::PointCloud<pcl::PointXYZRGB>& last = buffer.back();
-
-    for (const auto& p : last) {
-        std::size_t count = 1;
-
-        for (std::size_t i = 0; i < buffer.size() - 1; ++i) {
-            const auto& cloud = buffer[i];
-
-            const auto predicate = [&p, threshold](const auto& elem) {
-                const auto dist = std::sqrt(std::pow(p.x - elem.x, 2) + std::pow(p.y - elem.y, 2));
-                logging::debug("x1={}, y1={}, x2={}, y2={}, dist={}", p.x, p.y, elem.x, elem.y, dist);
-                return dist <= static_cast<double>(threshold);
-            };
-
-            const auto it = std::ranges::find_if(cloud, predicate);
-
-            if (it != std::end(cloud)) {
-                count += 1;
-            }
-        }
-
-        if (count >= min_occurrence) {
-            ret.push_back(p);
-        }
-    }
-
-    return ret;
 }
 
 #endif // UTILS_HH

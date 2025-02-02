@@ -24,11 +24,3 @@ circle_extraction:
     min_samples: 20
     r_max: 0.32 # m
     r_min: 0.28 # m
-pairing:
-  distance_threshold: 0.5 # m
-spatial_consistency:
-  buff_capacity: 3
-  min_occurrence: 2
-  distance_threshold: 0.5 # m
-input_sampling_rate: 4 # Hz
-initial_velocity: 1.0 # m/s

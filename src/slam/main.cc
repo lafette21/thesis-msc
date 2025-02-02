@@ -16,13 +16,13 @@ namespace po = boost::program_options;
 using yaml = nova::yaml;
 
 
-// void validate_format(const std::string& format) {
-    // const auto valid_formats = std::vector<std::string>{ "ply", "xyz" };
+void validate_format(const std::string& format) {
+    const auto valid_formats = std::vector<std::string>{ "ply", "xyz" };
 
-    // if (not ranges::contains(valid_formats, format)) {
-        // throw po::validation_error(po::validation_error::invalid_option_value, "format", format);
-    // }
-// }
+    if (not ranges::contains(valid_formats, format)) {
+        throw po::validation_error(po::validation_error::invalid_option_value, "format", format);
+    }
+}
 
 
 auto parse_args(int argc, char* argv[])
@@ -33,7 +33,7 @@ auto parse_args(int argc, char* argv[])
         ("config,c", po::value<std::string>()->required()->value_name("FILE"), "Config YAML file")
         ("indir,i", po::value<std::string>()->required()->value_name("DIR"), "Input directory (file name format: `test_fn{num}.xyz`)")
         ("odometry", po::value<std::string>()->required()->value_name("ODOMETRY"), "File containing the odometry measurements")
-        // ("format,f", po::value<std::string>()->required()->value_name("ply|xyz")->notifier(validate_format)->default_value("ply"), "Output format")
+        ("format,f", po::value<std::string>()->required()->value_name("ply|xyz")->notifier(validate_format)->default_value("ply"), "Output format")
         ("outdir,o", po::value<std::string>()->required()->value_name("DIR")->default_value("out"), "Output directory")
         ("help,h", "Show this help");
 
@@ -65,7 +65,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         const auto in_dir = (*args)["indir"].as<std::string>();
         const auto odometry = (*args)["odometry"].as<std::string>();
         const auto out_dir = (*args)["outdir"].as<std::string>();
-        // const auto format = (*args)["format"].as<std::string>();
+        const auto format = (*args)["format"].as<std::string>();
 
         if (not std::filesystem::exists(out_dir)) {
             if (std::filesystem::create_directory(out_dir)) {
@@ -75,9 +75,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
             }
         }
 
-        slam slam(config, in_dir, odometry, out_dir);
+        slam slam(config, in_dir, odometry, out_dir, format);
 
-        slam.optimize();
+        slam.do_();
 
         return EXIT_SUCCESS;
     } catch (const std::exception& ex) {
