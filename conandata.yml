@@ -1,6 +1,7 @@
 requirements:
   - benchmark/1.8.3
   - boost/1.83.0
+  - ceres-solver/2.2.0
   - eigen/3.4.0
   - fmt/10.2.1
   - gsl/2.7.1
