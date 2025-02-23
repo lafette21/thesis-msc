@@ -1,14 +1,15 @@
-#ifndef SLAM_HH
-#define SLAM_HH
+#pragma once
 
-// #include "catalog.hh"
+#include "catalog.hh"
 #include "logging.hh"
+#include "nova/vec.hh"
 #include "types.hh"
 #include "utils.hh"
 
 #include <boost/circular_buffer.hpp>
 #include <Eigen/Dense>
 #include <fmt/chrono.h>
+#include <fmt/ranges.h>
 #include <nova/io.hh>
 #include <nova/yaml.hh>
 #include <pcl/impl/point_types.hpp>
@@ -18,6 +19,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <range/v3/view/enumerate.hpp>
 
 using yaml = nova::yaml;
@@ -58,10 +60,10 @@ public:
 
         for (const auto& f : fs_sorted) {
             auto lm = nova::read_file<vec2d_data_parser>(f).value();
-            m_landmarks.push_back(lm);
+            m_raw_landmarks.push_back(lm);
         }
 
-        logging::info("Landmarks read: {}", m_landmarks.size());
+        logging::info("Landmarks read: {}", m_raw_landmarks.size());
     }
 
     void do_() {
@@ -75,11 +77,12 @@ public:
         Eigen::Matrix3d trafo = Eigen::Matrix3d::Identity();
         Eigen::Vector2d pose { 0, 0 };
         std::vector<std::chrono::microseconds> processing_times;
-        processing_times.reserve(m_landmarks.size());
+        processing_times.reserve(m_raw_landmarks.size());
         double velocity = init_velocity;
+        double angular_velocity = 0;
         double orientation = 0;
 
-        for (const auto& [idx, landmarks] : ranges::views::enumerate(m_landmarks)) {
+        for (const auto& [idx, landmarks] : ranges::views::enumerate(m_raw_landmarks)) {
             logging::debug("Landmarks: {}", landmarks.size());
 
             const auto start = nova::now();
@@ -91,7 +94,7 @@ public:
                     pairing_dist_threshold,
                     static_cast<double>(input_sampling_rate),
                     velocity,
-                    orientation
+                    angular_velocity
                 );
 
                 const auto [A, B] = conv_pts_to_same_size_mx(new_prev_landmarks, curr_landmarks);
@@ -111,11 +114,15 @@ public:
                 const auto dist = (pose - prev_pose).norm();
                 // std::cout << "Dist: " << dist << std::endl;
                 velocity = dist / (1. / static_cast<double>(input_sampling_rate));
-                // std::cout << "Speed: " << velocity << std::endl;
-                orientation = std::acos(std::min(std::max(new_trafo_tmp.R(0, 0), -1.), 1.));
-                // std::cout << "Orientation: " << orientation << " Angle: " << new_trafo_tmp.R(0, 0) << std::endl;
+                std::cout << "Speed: " << velocity << std::endl;
+                angular_velocity = std::acos(std::min(std::max(new_trafo_tmp.R(0, 0), -1.), 1.));
+                orientation += angular_velocity;
+                std::cout << "Orientation (rad): " << orientation << " Orientation (deg): " << orientation * 180. / M_PI << std::endl;
 
                 trafo = trafo * new_trafo;
+                m_poses.emplace_back(pose.x(), pose.y(), orientation);
+                // m_motion.emplace_back(velocity * static_cast<double>(input_sampling_rate), angular_velocity * static_cast<double>(input_sampling_rate));
+                m_motion.emplace_back(velocity, angular_velocity);
 
                 std::vector<nova::Vec2d> registered;
 
@@ -145,6 +152,8 @@ public:
                             reg << p.x() << " " << p.y() << " " << 0 << "\n";
                         }
                     }
+
+                    m_reg_landmarks.push_back(important_points);
                 }
             } else {
                 m_spat_cons_buff.push_back(landmarks);
@@ -160,7 +169,7 @@ public:
         if (m_format == "ply") {
             pcl::PointCloud<pcl::PointXYZ> raw;
 
-            for (const auto& landmarks : m_landmarks) {
+            for (const auto& landmarks : m_raw_landmarks) {
                 for (const auto& lm : landmarks) {
                     raw.emplace_back(lm.x(), lm.y(), 0);
                 }
@@ -170,7 +179,7 @@ public:
         } else {
             std::ofstream raw(fmt::format("{}/raw.xyz", m_out_dir));
 
-            for (const auto& landmarks : m_landmarks) {
+            for (const auto& landmarks : m_raw_landmarks) {
                 for (const auto& lm : landmarks) {
                     raw << lm.x() << " " << lm.y() << " " << 0 << "\n";
                 }
@@ -193,9 +202,10 @@ private:
     // catalog m_catalog;
     // std::vector<motion> m_motion;
     boost::circular_buffer<std::vector<nova::Vec2d>> m_spat_cons_buff;
-    std::vector<std::vector<nova::Vec2d>> m_landmarks;
+    std::vector<std::vector<nova::Vec2d>> m_raw_landmarks;
+    std::vector<std::vector<nova::Vec2d>> m_reg_landmarks;
+    std::vector<nova::Vec3d> m_poses{ nova::Vec3d{ 0, 0, 0 } };
+    std::vector<nova::Vec2d> m_motion;
     std::string m_out_dir;
     std::string m_format;
 };
-
-#endif // SLAM_HH

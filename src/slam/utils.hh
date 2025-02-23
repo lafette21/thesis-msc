@@ -37,7 +37,7 @@
     double threshold,
     double input_sampling_rate,
     double velocity,
-    double orientation
+    double angular_velocity
 )
         -> std::pair<std::vector<nova::Vec2d>, std::vector<nova::Vec2d>>
 {
@@ -47,8 +47,8 @@
 
     // Predict movement based on velocity
     double delta_time = 1. / input_sampling_rate;
-    double delta_x = velocity * delta_time * std::cos(orientation);
-    double delta_y = velocity * delta_time * std::sin(orientation);
+    double delta_x = velocity * delta_time * std::cos(angular_velocity);
+    double delta_y = velocity * delta_time * std::sin(angular_velocity);
 
     for (const auto& a : curr) {
         dist_mx.emplace_back(std::vector<double>{});
