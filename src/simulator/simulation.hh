@@ -1,6 +1,7 @@
 #ifndef SIMULATION_HH
 #define SIMULATION_HH
 
+#include "nova/vec.hh"
 #if defined(ENABLE_ROSBAG2_OUTPUT) && ENABLE_ROSBAG2_OUTPUT == 1
 #define ROS2_BUILD
 #endif
@@ -61,9 +62,11 @@ public:
         setup();
 
         const auto origin = m_path[0];
+        // const auto first_rotation = std::atan2(m_path[1].y() - origin.y(), m_path[1].x() - origin.x());
 
         for (auto& p : m_path) {
             p -= origin;
+            // p = rotate(p, -first_rotation);
         }
 
         for (auto& o : m_objects) {
@@ -76,6 +79,23 @@ public:
                 o
             );
         }
+
+        // for (auto& o : m_objects) {
+            // std::visit(
+                // lambdas{
+                    // [origin, first_rotation, this](sphere& p)   { p.center -= origin; p.center = rotate(p.center, -first_rotation); },
+                    // [origin, first_rotation, this](cylinder& p) { p.center -= origin; p.center = rotate(p.center, -first_rotation); },
+                    // [origin, first_rotation, this](plane& p)    {
+                        // p.p0 -= origin; p.p1 -= origin; p.p2 -= origin; p.p3 -= origin;
+                        // p.p0 = rotate(p.p0, -first_rotation);
+                        // p.p1 = rotate(p.p1, -first_rotation);
+                        // p.p2 = rotate(p.p2, -first_rotation);
+                        // p.p3 = rotate(p.p3, -first_rotation);
+                    // },
+                // },
+                // o
+            // );
+        // }
 
         std::vector<float> orientations;
         orientations.reserve(m_path.size());
@@ -110,6 +130,7 @@ public:
                               | std::views::transform([max_velocity](const auto& elem) { return (1.f - elem) * max_velocity; })
                               | ranges::to<std::vector>();
 
+        const auto rotation_rate = m_config.lookup<float>("lidar.vlp_16.rotation_rate.value");
         const auto motion_sampling = m_config.lookup<float>("motion.sampling");
         const auto distances = velocities
                              | std::views::transform([motion_sampling](const auto& elem) { return elem * (1.f / motion_sampling); })
@@ -136,12 +157,43 @@ public:
             return ret;
         }();
 
+        // TODO: For some reason the first angle is whole lot bigger than the rest
+        const auto motions = [sparse_poses, velocities, indices, motion_sampling]() -> std::vector<motion> {
+            std::vector<motion> ret;
+            ret.reserve(sparse_poses.size());
+
+            for (std::size_t i = 0; i < sparse_poses.size() - 1; ++i) {
+                const auto angle_next = sparse_poses[i + 1].orientation.z();
+                const auto angle_curr = sparse_poses[i].orientation.z();
+                float diff;
+
+                if (std::signbit(angle_next) == std::signbit(angle_curr)) {
+                    diff = angle_next - angle_curr;
+                } else {
+                    const auto dominant = (std::numbers::pi_v<float> - std::abs(angle_next)) > (std::numbers::pi_v<float> - std::abs(angle_curr)) ? angle_next : angle_curr;
+                    diff = std::abs(std::abs(angle_next) - std::abs(angle_curr));
+                    diff *= std::signbit(dominant) ? -1.f : 1.f;
+                }
+
+                ret.emplace_back(velocities[indices[i]], nova::Vec3f{ 0.f, 0.f, diff / motion_sampling });
+            }
+
+            ret.push_back(ret.back());
+
+            return ret;
+        }();
+
 #ifdef ROS2_BUILD
         auto ts = rclcpp::Clock().now();
 #endif
 
         for (const auto& [i, pose] : ranges::views::enumerate(sparse_poses)) {
             m_lidar.move({ pose.position.x(), pose.position.y(), m_lidar.pos().z() });
+
+            if (i % static_cast<std::size_t>(motion_sampling / rotation_rate) != 0) {
+                continue;
+            }
+
             const auto data = m_lidar.scan(m_objects, pose.orientation.z())
                             | std::views::transform([pose](const auto& elem) { return nova::Vec3f{ elem.x() - pose.position.x(), elem.y() - pose.position.y(), elem.z() }; })
                             | ranges::to<std::vector>();
@@ -173,11 +225,17 @@ public:
                 // Write the message into the bag
                 m_writer->write(serialized_msg, "/lidar", "sensor_msgs/msgs/point_cloud", ts);
 
-                ts += rclcpp::Duration(std::chrono::milliseconds{ 250 });
+                ts += rclcpp::Duration(std::chrono::milliseconds{ static_cast<std::size_t>((1.f / rotation_rate) * 1000.f) });
             }
 #endif
             if (m_format == "xyz") {
                 print(fmt::format("{}/test_fn{}.xyz", m_out_dir, i + 1), data);
+
+                std::ofstream out(fmt::format("{}/odometry.txt", m_out_dir));
+
+                for (const auto& motion : motions) {
+                    out << motion.velocity << " " << motion.ang_vel.z() << std::endl;
+                }
             }
         }
     }
@@ -284,6 +342,14 @@ private:
             indices
         };
     }
+
+    // auto rotate(const nova::Vec3f& vec, float angle) -> nova::Vec3f {
+        // return {
+            // vec.x() * std::cos(angle) - vec.y() * std::sin(angle),
+            // vec.x() * std::sin(angle) + vec.y() * std::cos(angle),
+            // vec.z()
+        // };
+    // }
 
     void print(const std::string& path, const auto& data) {
         std::ofstream oF(path);
