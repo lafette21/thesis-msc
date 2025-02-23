@@ -1,6 +1,5 @@
 #pragma once
 
-#include "catalog.hh"
 #include "logging.hh"
 #include "nova/vec.hh"
 #include "types.hh"
@@ -16,26 +15,24 @@
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
 #include <range/v3/all.hpp>
+#include <range/v3/view/enumerate.hpp>
 
 #include <filesystem>
 #include <iostream>
 #include <memory>
-#include <range/v3/view/enumerate.hpp>
 
 using yaml = nova::yaml;
 
 
 class slam {
 public:
-    slam(const yaml& config, const std::string& in_dir, const std::string& odometry_file, const std::string& out_dir, const std::string& format)
+    slam(const yaml& config, const std::string& in_dir, const std::string& out_dir, const std::string& format)
         : m_config(config)
-        // , m_catalog(config.lookup<float>("catalog.distance_threshold"))
         , m_spat_cons_buff(m_config.lookup<std::size_t>("spatial_consistency.buff_capacity"))
         , m_out_dir(out_dir)
         , m_format(format)
     {
         logging::info("Spatial consistency buffer capacity: {}", m_spat_cons_buff.capacity());
-        // m_motion = nova::read_file<motion_data_parser>(std::filesystem::path(odometry_file).string()).value();
 
         const auto fs_sorted = [in_dir]() {
             const auto extract_number = [](const std::string& filename) {
@@ -199,8 +196,6 @@ public:
 
 private:
     yaml m_config;
-    // catalog m_catalog;
-    // std::vector<motion> m_motion;
     boost::circular_buffer<std::vector<nova::Vec2d>> m_spat_cons_buff;
     std::vector<std::vector<nova::Vec2d>> m_raw_landmarks;
     std::vector<std::vector<nova::Vec2d>> m_reg_landmarks;
