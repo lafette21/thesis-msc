@@ -1,5 +1,6 @@
 find_package(benchmark)
 find_package(Boost COMPONENTS program_options REQUIRED)
+find_package(Ceres REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(fmt REQUIRED)
 find_package(GSL REQUIRED)

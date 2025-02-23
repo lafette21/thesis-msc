@@ -76,6 +76,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
         slam slam(config, in_dir, out_dir, format);
 
         slam.do_();
+        slam.optimize(true);
 
         return EXIT_SUCCESS;
     } catch (const std::exception& ex) {

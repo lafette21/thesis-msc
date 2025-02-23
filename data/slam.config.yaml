@@ -1,3 +1,5 @@
+catalog:
+  distance_threshold: 0.5
 pairing:
   distance_threshold: 1.5 # 0.5 # m
 spatial_consistency:

@@ -1,11 +1,14 @@
 #pragma once
 
+#include "catalog.hh"
 #include "logging.hh"
 #include "nova/vec.hh"
 #include "types.hh"
 #include "utils.hh"
 
+#include <autodiff_cost_function.h>
 #include <boost/circular_buffer.hpp>
+#include <ceres/ceres.h>
 #include <Eigen/Dense>
 #include <fmt/chrono.h>
 #include <fmt/ranges.h>
@@ -14,6 +17,7 @@
 #include <pcl/impl/point_types.hpp>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
+#include <problem.h>
 #include <range/v3/all.hpp>
 #include <range/v3/view/enumerate.hpp>
 
@@ -194,8 +198,86 @@ public:
         stats << " } }";
     }
 
+    bool optimize(bool report = false) {
+        logging::info("Vec<Pose> size: {}", m_poses.size());
+        logging::info("Vec<Motion> size: {}", m_motion.size());
+        logging::info("Vec<Landmarks> size: {}", m_raw_landmarks.size());
+        logging::info("Vec<Registered> size: {}", m_reg_landmarks.size());
+
+        catalog catalog(m_config.lookup<double>("catalog.distance_threshold"));
+        logging::info("Catalog created with distance threshold: {}", m_config.lookup<double>("catalog.distance_threshold"));
+
+        m_solver_options.max_num_iterations = 500;
+        m_solver_options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        // m_solver_options.minimizer_progress_to_stdout = true;
+
+        // m_pose_cost_function = std::make_unique<ceres::AutoDiffCostFunction<pose_error_func, 3, 3, 3, 2>>(new pose_error_func);
+        // m_landmark_cost_function = std::make_unique<ceres::AutoDiffCostFunction<landmark_error_func, 2, 3, 2, 2>>(new landmark_error_func);
+        m_pose_cost_function = new ceres::AutoDiffCostFunction<pose_error_func, 3, 3, 3, 2>(new pose_error_func);
+        m_landmark_cost_function = new ceres::AutoDiffCostFunction<landmark_error_func, 2, 3, 2, 2>(new landmark_error_func);
+
+        ceres::Problem problem;
+        ceres::Solver::Summary summary;
+
+        for (std::size_t i = 1; i < m_poses.size(); ++i) {
+            auto& prev = m_poses[i - 1];
+            auto& curr = m_poses[i];
+
+            problem.AddResidualBlock(m_pose_cost_function, nullptr, prev.data(), curr.data(), m_motion[i - 1].data());
+            problem.SetParameterBlockConstant(m_motion[i - 1].data());
+
+            auto& measurements = m_reg_landmarks[i - 1];
+
+            for (std::size_t j = 0; j < measurements.size(); ++j) {
+                const auto id = catalog.add(measurements[j]);
+                auto& lm = catalog.get(id).front();
+                problem.AddResidualBlock(m_landmark_cost_function, nullptr, prev.data(), lm.data(), measurements[j].data());
+                problem.SetParameterBlockConstant(measurements[j].data());
+            }
+        }
+
+        // Set anchor for first pose
+        problem.SetParameterBlockConstant(m_poses[0].data());
+
+        fmt::print("{}", catalog.dump());
+
+        Solve(m_solver_options, &problem, &summary);
+
+        fmt::print("{}", catalog.dump());
+
+        if (report) {
+            std::cerr << summary.FullReport() << std::endl;
+        }
+
+        if (m_format == "ply") {
+            pcl::PointCloud<pcl::PointXYZ> raw;
+
+            for (const auto& [k, _] : catalog.data()) {
+                const auto lm = catalog.get(k).front();
+                raw.emplace_back(lm.x(), lm.y(), 0);
+            }
+
+            pcl::io::savePLYFile(fmt::format("{}/slam.ply", m_out_dir), raw);
+        } else {
+            std::ofstream raw(fmt::format("{}/slam.xyz", m_out_dir));
+
+            for (const auto& [k, _] : catalog.data()) {
+                const auto lm = catalog.get(k).front();
+                raw << lm.x() << " " << lm.y() << " " << 0 << "\n";
+            }
+        }
+
+        return summary.IsSolutionUsable();
+    }
+
 private:
     yaml m_config;
+    // catalog m_catalog;
+    // std::unique_ptr<ceres::CostFunction> m_pose_cost_function;
+    // std::unique_ptr<ceres::CostFunction> m_landmark_cost_function;
+    ceres::CostFunction* m_pose_cost_function;
+    ceres::CostFunction* m_landmark_cost_function;
+    ceres::Solver::Options m_solver_options;
     boost::circular_buffer<std::vector<nova::Vec2d>> m_spat_cons_buff;
     std::vector<std::vector<nova::Vec2d>> m_raw_landmarks;
     std::vector<std::vector<nova::Vec2d>> m_reg_landmarks;
