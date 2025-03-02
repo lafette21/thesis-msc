@@ -13,7 +13,7 @@ ax1.scatter([sensor_pos[0]], [sensor_pos[1]], [sensor_pos[2]], color='#031926', 
 
 # Ray
 ray_direction = np.array([1.5, 1.5, 1.5]) - sensor_pos
-ray_length = 3.5  # Extend the ray beyond the sphere
+ray_length = 3.5  # Extend the ray beyond the cylinder
 ray_end = sensor_pos + ray_length * ray_direction / np.linalg.norm(ray_direction)
 ax1.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2], ray_end[2]], color='#E63946', label='LiDAR Ray')
 
@@ -64,7 +64,7 @@ ax2.scatter([sensor_pos[0]], [sensor_pos[1]], [sensor_pos[2]], color='#031926', 
 
 # Ray
 ray_direction = np.array([1.5, 1.5, 1.5]) - sensor_pos
-ray_length = 4.5  # Extend the ray beyond the sphere
+ray_length = 4.5  # Extend the ray beyond the cylinder
 ray_end = sensor_pos + ray_length * ray_direction / np.linalg.norm(ray_direction)
 ax2.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2], ray_end[2]], color='#E63946', label='LiDAR Ray')
 

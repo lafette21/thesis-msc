@@ -13,7 +13,7 @@ ax1.scatter([sensor_pos[0]], [sensor_pos[1]], [sensor_pos[2]], color='#031926', 
 
 # Ray
 ray_direction = np.array([1.5, 1.5, 1.5]) - sensor_pos
-ray_length = 3.5  # Extend the ray beyond the sphere
+ray_length = 3.5  # Extend the ray beyond the plane
 ray_end = sensor_pos + ray_length * ray_direction / np.linalg.norm(ray_direction)
 ax1.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2], ray_end[2]], color='#E63946', label='LiDAR Ray')
 
@@ -21,7 +21,6 @@ ax1.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2
 xx, zz = np.meshgrid(np.linspace(0, 3, 10), np.linspace(0, 3, 10))
 yy = np.ones_like(xx) * 1.5  # Centered at x=1.5
 ax1.plot_surface(xx, yy, zz, color='#86C8E2', alpha=0.4, label='Plane')
-#  ax1.plot_surface(x, y, z, color='#86C8E2', shade=False, alpha=0.4, label='Sphere')
 
 # Set axis labels
 ax1.set_xlabel('X (m)')
@@ -62,7 +61,7 @@ ax2.scatter([sensor_pos[0]], [sensor_pos[1]], [sensor_pos[2]], color='#031926', 
 
 # Ray
 ray_direction = np.array([1.5, 1.5, 1.5]) - sensor_pos
-ray_length = 5.5  # Extend the ray beyond the sphere
+ray_length = 5.5  # Extend the ray beyond the plane
 ray_end = sensor_pos + ray_length * ray_direction / np.linalg.norm(ray_direction)
 ax2.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2], ray_end[2]], color='#E63946', label='LiDAR Ray')
 
