@@ -20,7 +20,7 @@ ax1.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2
 # Plane
 xx, zz = np.meshgrid(np.linspace(0, 3, 10), np.linspace(0, 3, 10))
 yy = np.ones_like(xx) * 1.5  # Centered at x=1.5
-ax1.plot_surface(xx, yy, zz, color='#86C8E2', alpha=0.4, label='Plane')
+ax1.plot_surface(xx, yy, zz, color='#86C8E2', shade=False, alpha=0.4, label='Plane')
 
 # Set axis labels
 ax1.set_xlabel('X (m)')
@@ -68,7 +68,7 @@ ax2.plot([sensor_pos[0], ray_end[0]], [sensor_pos[1], ray_end[1]], [sensor_pos[2
 # Plane
 xx, zz = np.meshgrid(np.linspace(0, 3, 10), np.linspace(0, 2.5, 10))
 yy = np.ones_like(xx) * 1.5  # Centered at x=1.5
-ax2.plot_surface(xx, yy, zz, color='#86C8E2', alpha=0.4, label='Plane')
+ax2.plot_surface(xx, yy, zz, color='#86C8E2', shade=False, alpha=0.4, label='Plane')
 
 # Set axis labels
 ax2.set_xlabel('X (m)')
