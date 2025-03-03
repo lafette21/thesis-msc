@@ -1,5 +1,4 @@
-#ifndef LOGGING_HH
-#define LOGGING_HH
+#pragma once
 
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
@@ -16,5 +15,3 @@ inline auto& init(const std::string& name) {
 
     return logger;
 }
-
-#endif // LOGGING_HH

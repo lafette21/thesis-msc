@@ -1,5 +1,4 @@
-#ifndef UTILS_HH
-#define UTILS_HH
+#pragma once
 
 #include "circle.hh"
 #include "ransac.hh"
@@ -119,7 +118,7 @@
         pcl::PointCloud<pcl::PointXYZRGB> tmp;
 
         for (const auto& idx : cl.indices) {
-            tmp.push_back(cloud.points[idx]);
+            tmp.push_back(cloud.points[static_cast<std::size_t>(idx)]);
         }
 
         ret.push_back(tmp);
@@ -156,5 +155,3 @@
         rest
     };
 }
-
-#endif // UTILS_HH

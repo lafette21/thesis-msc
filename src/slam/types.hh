@@ -8,8 +8,7 @@
 #include <cmath>
 
 
-
-// Generalize
+// TODO: Generalize
 struct vec2d_data_parser {
     [[nodiscard]] auto operator()(std::istream& inf) -> std::vector<nova::Vec2d> {
         std::vector<nova::Vec2d> ret;

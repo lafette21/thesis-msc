@@ -1,5 +1,4 @@
-#ifndef PERCEPTION_HH
-#define PERCEPTION_HH
+#pragma once
 
 #include "logging.hh"
 #include "types.hh"
@@ -181,5 +180,3 @@ private:
     std::string m_format;
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>> m_clouds;
 };
-
-#endif // PERCEPTION_HH

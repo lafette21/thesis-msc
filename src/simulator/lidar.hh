@@ -1,5 +1,4 @@
-#ifndef LIDAR_HH
-#define LIDAR_HH
+#pragma once
 
 #include "logging.hh"
 #include "utils.hh"
@@ -89,5 +88,3 @@ private:
     std::vector<nova::Vec3f> m_data;
     nova::Vec3f m_origin = { 0, 0, 1.5 };
 };
-
-#endif // LIDAR_HH

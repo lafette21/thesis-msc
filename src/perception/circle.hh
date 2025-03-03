@@ -1,5 +1,4 @@
-#ifndef CIRCLE_HH
-#define CIRCLE_HH
+#pragma once
 
 #include "logging.hh"
 #include "ransac.hh"
@@ -147,5 +146,3 @@ inline nova::rng& random(std::optional<std::random_device::result_type> seed = s
 
     return estimate_circle_lsq(inliers, best_circle);
 }
-
-#endif // CIRCLE_HH

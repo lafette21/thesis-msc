@@ -1,5 +1,4 @@
-#ifndef TYPES_HH
-#define TYPES_HH
+#pragma once
 
 #include <fmt/format.h>
 #include <pcl/point_cloud.h>
@@ -24,5 +23,3 @@ struct lidar_data_parser {
         return result;
     }
 };
-
-#endif // TYPES_HH

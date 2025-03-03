@@ -1,5 +1,4 @@
-#ifndef RANSAC_HH
-#define RANSAC_HH
+#pragma once
 
 #include <nova/vec.hh>
 
@@ -43,5 +42,3 @@ struct RANSAC_diffs {
         .is_inliers = is_inliers,
     };
 }
-
-#endif // RANSAC_HH
