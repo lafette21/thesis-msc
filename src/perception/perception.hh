@@ -45,10 +45,7 @@ public:
         : m_config(config)
         , m_out_dir(out_dir)
         , m_format(format)
-        , m_spat_cons_buff(m_config.lookup<std::size_t>("spatial_consistency.buff_capacity"))
     {
-        logging::info("Spatial consistency buffer capacity: {}", m_spat_cons_buff.capacity());
-
         m_clouds.reserve(end - start + 1);
 
         logging::info("Reading cloud(s)");
@@ -90,22 +87,12 @@ public:
         const auto ce_ransac_min_samples = m_config.lookup<std::size_t>("circle_extraction.ransac.min_samples");
         const auto ce_ransac_r_max = m_config.lookup<float>("circle_extraction.ransac.r_max");
         const auto ce_ransac_r_min = m_config.lookup<float>("circle_extraction.ransac.r_min");
-        const auto pairing_dist_threshold = m_config.lookup<float>("pairing.distance_threshold");
-        const auto spat_cons_min_occurrence = m_config.lookup<std::size_t>("spatial_consistency.min_occurrence");
-        const auto spat_cons_dist_threshold = m_config.lookup<float>("spatial_consistency.distance_threshold");
-        const auto input_sampling_rate = m_config.lookup<std::size_t>("input_sampling_rate");
-        const auto init_velocity = m_config.lookup<float>("initial_velocity");
 
         logging::info("Processing cloud(s)");
 
         pcl::PointCloud<pcl::PointXYZRGB> out;
-        std::vector<nova::Vec3f> prev_circle_params;
-        Eigen::Matrix3f trafo = Eigen::Matrix3f::Identity();
-        Eigen::Vector2f pose { 0, 0 };
         std::vector<std::chrono::milliseconds> processing_times;
         processing_times.reserve(m_clouds.size());
-        float velocity = init_velocity;
-        float orientation = 0;
 
         for (const auto& [idx, cloud] : ranges::views::enumerate(m_clouds)) {
             logging::debug("Cloud size: {}", cloud.size());
@@ -120,9 +107,6 @@ public:
             const auto filtered = filter_planes(new_cloud, fp_dist_threshold, fp_min_inliers);
             const auto flattened = flatten(filtered);
             const auto clusters = cluster(flattened, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
-
-            // pcl::io::savePLYFile("./flattened.ply", flattened);
-            // break;
 
             logging::info("Clusters found: {}", clusters.size());
 
@@ -158,113 +142,26 @@ public:
                 circle_params.push_back(params);
             }
 
-            // for (const auto& p : circle_params) {
-                // fmt::print("{} {}\n", p.x(), p.y());
-            // }
+            if (m_format == "ply") {
+                pcl::PointCloud<pcl::PointXYZ> points;
+                points.reserve(circle_params.size());
 
-            // std::cout << fmt::format("Curr: {}", circle_params) << std::endl;
-            // std::cout << fmt::format("Prev: {}", prev_circle_params) << std::endl;
-
-            if (prev_circle_params.size() > 0) {
-                const auto [curr_circle_params, new_prev_circle_params] = pairing(
-                    circle_params,
-                    prev_circle_params,
-                    pairing_dist_threshold,
-                    static_cast<float>(input_sampling_rate),
-                    velocity,
-                    orientation
-                );
-
-                pcl::PointCloud<pcl::PointXYZRGB> prev_points;
-
-                for (const auto& params : new_prev_circle_params) {
-                    prev_points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
+                for (const auto& circle : circle_params) {
+                    points.emplace_back(circle.x(), circle.y(), 0);
                 }
 
-                pcl::PointCloud<pcl::PointXYZRGB> curr_points;
-
-                for (const auto& params : curr_circle_params) {
-                    curr_points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
-                }
-
-                out += curr_points;
-
-                const auto [A, B] = conv_pts_to_same_size_mx(prev_points, curr_points);
-                const auto new_trafo_tmp = rigid_transform_2D(B, A);
-
-                Eigen::Matrix3f new_trafo = Eigen::Matrix3f::Identity();
-                new_trafo.block<2, 2>(0, 0) = new_trafo_tmp.R;
-                new_trafo.block<2, 1>(0, 2) = new_trafo_tmp.t;
-
-                // std::cout << "Pose: " << pose << std::endl;
-                Eigen::Vector2f prev_pose = pose;
-                pose += new_trafo_tmp.t;
-                pose = new_trafo_tmp.R * pose;
-
-                // std::cout << "R: " << new_trafo_tmp.R << std::endl;
-
-                const auto dist = (pose - prev_pose).norm();
-                // std::cout << "Dist: " << dist << std::endl;
-                velocity = dist / (1.f / static_cast<float>(input_sampling_rate));
-                // std::cout << "Speed: " << velocity << std::endl;
-                orientation = std::acos(std::min(std::max(new_trafo_tmp.R(0, 0), -1.f), 1.f));
-                // std::cout << "Orientation: " << orientation << " Angle: " << new_trafo_tmp.R(0, 0) << std::endl;
-
-                trafo = trafo * new_trafo;
-
-                pcl::PointCloud<pcl::PointXYZRGB> registered;
-
-                for (const auto& p : curr_points) {
-                    const Eigen::Vector3f pt = Eigen::Vector3f{ p.x, p.y, 1.0f };
-                    const Eigen::Vector3f ptt = trafo * pt;
-                    registered.emplace_back(ptt.x(), ptt.y(), 0, 255, 0, 0);
-                }
-
-                // for (const auto& p : prev_points) {
-                    // registered.emplace_back(p.x, p.y, 0, 0, 255, 0);
-                // }
-
-                m_spat_cons_buff.push_back(registered);
-
-                if (m_spat_cons_buff.size() >= spat_cons_min_occurrence) {
-                    const auto important_points = extract_consistent_points(m_spat_cons_buff, spat_cons_min_occurrence, spat_cons_dist_threshold);
-
-                    if (m_format == "ply") {
-                        pcl::io::savePLYFile(fmt::format("{}/registered-{}.ply", m_out_dir, idx + 1), important_points);
-                    } else {
-                        std::ofstream reg(fmt::format("{}/registered-{}.xyz", m_out_dir, idx + 1));
-
-                        for (const auto& p : important_points) {
-                            reg << p.x << " " << p.y << " " << 0 << "\n";
-                        }
-                    }
-                }
+                pcl::io::savePLYFile(fmt::format("{}/processed-{}.ply", m_out_dir, idx + 1), points);
             } else {
-                pcl::PointCloud<pcl::PointXYZRGB> points;
+                std::ofstream processed(fmt::format("{}/processed-{}.xyz", m_out_dir, idx + 1));
 
-                for (const auto& params : circle_params) {
-                    points.emplace_back(params.x(), params.y(), 0, 0, 255, 0);
+                for (const auto& circle : circle_params) {
+                    processed << circle.x() << " " << circle.y() << " " << 0 << "\n";
                 }
-
-                m_spat_cons_buff.push_back(points);
-                out += points;
             }
-
-            prev_circle_params = circle_params;
 
             const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(nova::now() - start);
             processing_times.push_back(duration);
             logging::info("Processing took: {}", duration);
-        }
-
-        if (m_format == "ply") {
-            pcl::io::savePLYFile(fmt::format("{}/raw.ply", m_out_dir), out);
-        } else {
-            std::ofstream raw(fmt::format("{}/raw.xyz", m_out_dir));
-
-            for (const auto& p : out) {
-                raw << p.x << " " << p.y << " " << 0 << "\n";
-            }
         }
 
         std::ofstream stats(fmt::format("{}/stats.json", m_out_dir));
@@ -282,7 +179,6 @@ private:
     yaml m_config;
     std::string m_out_dir;
     std::string m_format;
-    boost::circular_buffer<pcl::PointCloud<pcl::PointXYZRGB>> m_spat_cons_buff;
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>> m_clouds;
 };
 
