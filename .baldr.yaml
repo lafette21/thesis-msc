@@ -3,5 +3,5 @@ debugger: gdb
 cmake:
   definitions:
     - CMAKE_PROJECT_TOP_LEVEL_INCLUDES=./conan_provider.cmake
-    - ENABLE_ROSBAG2_OUTPUT=ON
+    - ENABLE_ROSBAG2_OUTPUT=OFF
     - SUPPRESS_COMPILER_WERROR=1

@@ -10,6 +10,7 @@ target_link_libraries(test-thesis PRIVATE
     nova
 
     Eigen3::Eigen
+    fmt::fmt-header-only
 
     GTest::gmock
     GTest::gtest

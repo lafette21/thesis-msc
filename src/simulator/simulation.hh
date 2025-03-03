@@ -1,5 +1,4 @@
-#ifndef SIMULATION_HH
-#define SIMULATION_HH
+#pragma once
 
 #if defined(ENABLE_ROSBAG2_OUTPUT) && ENABLE_ROSBAG2_OUTPUT == 1
 #define ROS2_BUILD
@@ -293,5 +292,3 @@ private:
         }
     }
 };
-
-#endif // SIMULATION_HH

@@ -1,5 +1,4 @@
-#ifndef UTILS_HH
-#define UTILS_HH
+#pragma once
 
 #include "types.hh"
 
@@ -288,5 +287,3 @@ struct fmt::formatter<nova::Vec3f> {
         return fmt::format_to(ctx.out(), "{{ {}, {}, {} }}", obj.x(), obj.y(), obj.z());
     }
 };
-
-#endif // UTILS_HH

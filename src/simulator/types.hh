@@ -1,10 +1,8 @@
-#ifndef TYPES_HH
-#define TYPES_HH
+#pragma once
 
 #include <nova/vec.hh>
 #include <fmt/format.h>
 
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <variant>
@@ -60,7 +58,7 @@ struct ray {
     }
 };
 
-std::istream& operator>>(std::istream& is, nova::Vec3f& vec) {
+inline std::istream& operator>>(std::istream& is, nova::Vec3f& vec) {
     is >> vec.x() >> vec.y() >> vec.z();
     return is;
 }
@@ -106,5 +104,3 @@ struct xyz_parser {
         return ret;
     }
 };
-
-#endif // TYPES_HH
