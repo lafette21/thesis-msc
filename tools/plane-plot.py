@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure(figsize=(12, 6))
 
-# --- First subplot: Side-view (XZ plane, looking along Y-axis) ---
+# --- First subplot: Side view
 ax1 = fig.add_subplot(121, projection='3d')
 
 # Lidar
@@ -52,7 +52,7 @@ ax1.legend()
 #  ax1.view_init(elev=20, azim=45)
 ax1.view_init(elev=0, azim=0)
 
-# --- Second subplot: Different angle (3D perspective view) ---
+# --- Second subplot: Isometric view
 ax2 = fig.add_subplot(122, projection='3d')  # 122 means 1 row, 2 columns, 2nd subplot
 
 # Lidar
