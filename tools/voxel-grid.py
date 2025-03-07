@@ -31,7 +31,7 @@ ax1.voxels(highlight_grid, facecolors='white', edgecolors='#E63946', linewidth=1
 ax1.set_xlabel('X (m)')
 ax1.set_ylabel('Y (m)')
 ax1.set_zlabel('Z (m)')
-ax1.set_title('Unfiltered Voxel Grid')
+ax1.set_title('Voxel Grid')
 
 # Set axis limits
 ax1.set_xlim([0, 10])
