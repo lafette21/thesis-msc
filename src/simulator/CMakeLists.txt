@@ -11,6 +11,7 @@ target_include_directories(${EXEC_NAME} PUBLIC
 target_link_libraries(${EXEC_NAME} PUBLIC
     Boost::program_options
     fmt::fmt-header-only
+    spdlog::spdlog_header_only
     GSL::gsl
     nova
     range-v3::range-v3

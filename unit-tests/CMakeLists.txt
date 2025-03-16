@@ -11,6 +11,8 @@ target_link_libraries(test-thesis PRIVATE
 
     Eigen3::Eigen
     fmt::fmt-header-only
+    spdlog::spdlog_header_only
+    range-v3::range-v3
 
     GTest::gmock
     GTest::gtest
