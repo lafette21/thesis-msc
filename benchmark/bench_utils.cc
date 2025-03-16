@@ -45,14 +45,6 @@ circle_extraction:
     min_samples: 20
     r_max: 0.32 # m
     r_min: 0.28 # m
-pairing:
-  distance_threshold: 0.5 # m
-spatial_consistency:
-  buff_capacity: 3
-  min_occurrence: 2
-  distance_threshold: 0.5
-input_sampling_rate: 4 # Hz
-initial_velocity: 1.0 # m/s
     )yaml");
 }
 
@@ -119,7 +111,7 @@ static void bench_filter_planes_downsampled_real(benchmark::State& state) {
     }
 }
 
-static void bench_cluster_filtered_downsampled_sim(benchmark::State& state) {
+static void bench_flatten_filtered_downsampled_sim(benchmark::State& state) {
     const auto config = create_config();
     const auto leaf_size = nova::Vec3f{
         config.lookup<float>("downsampling.leaf_size.x"),
@@ -128,20 +120,14 @@ static void bench_cluster_filtered_downsampled_sim(benchmark::State& state) {
     };
     const auto fp_dist_threshold = config.lookup<double>("plane_filtering.distance_threshold");
     const auto fp_min_inliers = config.lookup<std::size_t>("plane_filtering.min_inliers");
-    const auto c_k_search = config.lookup<int>("clustering.k_search");
-    const auto c_cluster_size_max = config.lookup<unsigned>("clustering.cluster_size.max");
-    const auto c_cluster_size_min = config.lookup<unsigned>("clustering.cluster_size.min");
-    const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
-    const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
-    const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
     const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
 
     for (auto _ : state) {
-        const auto tmp = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
+        const auto tmp = flatten(cloud);
     }
 }
 
-static void bench_cluster_filtered_downsampled_real(benchmark::State& state) {
+static void bench_flatten_filtered_downsampled_real(benchmark::State& state) {
     const auto config = create_config();
     const auto leaf_size = nova::Vec3f{
         config.lookup<float>("downsampling.leaf_size.x"),
@@ -150,20 +136,14 @@ static void bench_cluster_filtered_downsampled_real(benchmark::State& state) {
     };
     const auto fp_dist_threshold = config.lookup<double>("plane_filtering.distance_threshold");
     const auto fp_min_inliers = config.lookup<std::size_t>("plane_filtering.min_inliers");
-    const auto c_k_search = config.lookup<int>("clustering.k_search");
-    const auto c_cluster_size_max = config.lookup<unsigned>("clustering.cluster_size.max");
-    const auto c_cluster_size_min = config.lookup<unsigned>("clustering.cluster_size.min");
-    const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
-    const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
-    const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
     const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
 
     for (auto _ : state) {
-        const auto tmp = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
+        const auto tmp = flatten(cloud);
     }
 }
 
-static void bench_extract_clusters_filtered_downsampled_sim(benchmark::State& state) {
+static void bench_cluster_flattened_filtered_downsampled_sim(benchmark::State& state) {
     const auto config = create_config();
     const auto leaf_size = nova::Vec3f{
         config.lookup<float>("downsampling.leaf_size.x"),
@@ -178,7 +158,51 @@ static void bench_extract_clusters_filtered_downsampled_sim(benchmark::State& st
     const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
     const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
     const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
-    const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
+
+    for (auto _ : state) {
+        const auto tmp = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
+    }
+}
+
+static void bench_cluster_flattened_filtered_downsampled_real(benchmark::State& state) {
+    const auto config = create_config();
+    const auto leaf_size = nova::Vec3f{
+        config.lookup<float>("downsampling.leaf_size.x"),
+        config.lookup<float>("downsampling.leaf_size.y"),
+        config.lookup<float>("downsampling.leaf_size.z"),
+    };
+    const auto fp_dist_threshold = config.lookup<double>("plane_filtering.distance_threshold");
+    const auto fp_min_inliers = config.lookup<std::size_t>("plane_filtering.min_inliers");
+    const auto c_k_search = config.lookup<int>("clustering.k_search");
+    const auto c_cluster_size_max = config.lookup<unsigned>("clustering.cluster_size.max");
+    const auto c_cluster_size_min = config.lookup<unsigned>("clustering.cluster_size.min");
+    const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
+    const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
+    const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
+
+    for (auto _ : state) {
+        const auto tmp = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
+    }
+}
+
+static void bench_extract_clusters_flattened_filtered_downsampled_sim(benchmark::State& state) {
+    const auto config = create_config();
+    const auto leaf_size = nova::Vec3f{
+        config.lookup<float>("downsampling.leaf_size.x"),
+        config.lookup<float>("downsampling.leaf_size.y"),
+        config.lookup<float>("downsampling.leaf_size.z"),
+    };
+    const auto fp_dist_threshold = config.lookup<double>("plane_filtering.distance_threshold");
+    const auto fp_min_inliers = config.lookup<std::size_t>("plane_filtering.min_inliers");
+    const auto c_k_search = config.lookup<int>("clustering.k_search");
+    const auto c_cluster_size_max = config.lookup<unsigned>("clustering.cluster_size.max");
+    const auto c_cluster_size_min = config.lookup<unsigned>("clustering.cluster_size.min");
+    const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
+    const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
+    const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
     const auto clusters = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
 
     for (auto _ : state) {
@@ -186,7 +210,7 @@ static void bench_extract_clusters_filtered_downsampled_sim(benchmark::State& st
     }
 }
 
-static void bench_extract_clusters_filtered_downsampled_real(benchmark::State& state) {
+static void bench_extract_clusters_flattened_filtered_downsampled_real(benchmark::State& state) {
     const auto config = create_config();
     const auto leaf_size = nova::Vec3f{
         config.lookup<float>("downsampling.leaf_size.x"),
@@ -201,7 +225,7 @@ static void bench_extract_clusters_filtered_downsampled_real(benchmark::State& s
     const auto c_num_of_neighbours = config.lookup<unsigned>("clustering.num_of_neighbours");
     const auto c_smoothness_threshold = config.lookup<float>("clustering.smoothness_threshold");
     const auto c_curvature_threshold = config.lookup<float>("clustering.curvature_threshold");
-    const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
     const auto clusters = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
 
     for (auto _ : state) {
@@ -229,7 +253,7 @@ static void bench_extract_1_circle_sim(benchmark::State& state) {
     const auto ce_ransac_min_samples = config.lookup<std::size_t>("circle_extraction.ransac.min_samples");
     const auto ce_ransac_r_max = config.lookup<float>("circle_extraction.ransac.r_max");
     const auto ce_ransac_r_min = config.lookup<float>("circle_extraction.ransac.r_min");
-    const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
     const auto clusters = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
@@ -258,7 +282,7 @@ static void bench_extract_1_circle_real(benchmark::State& state) {
     const auto ce_ransac_min_samples = config.lookup<std::size_t>("circle_extraction.ransac.min_samples");
     const auto ce_ransac_r_max = config.lookup<float>("circle_extraction.ransac.r_max");
     const auto ce_ransac_r_min = config.lookup<float>("circle_extraction.ransac.r_min");
-    const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
     const auto clusters = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
@@ -287,7 +311,7 @@ static void bench_extract_circles_par_sim(benchmark::State& state) {
     const auto ce_ransac_min_samples = config.lookup<std::size_t>("circle_extraction.ransac.min_samples");
     const auto ce_ransac_r_max = config.lookup<float>("circle_extraction.ransac.r_max");
     const auto ce_ransac_r_min = config.lookup<float>("circle_extraction.ransac.r_min");
-    const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/sim.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
     const auto clusters = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
@@ -324,7 +348,7 @@ static void bench_extract_circles_par_real(benchmark::State& state) {
     const auto ce_ransac_min_samples = config.lookup<std::size_t>("circle_extraction.ransac.min_samples");
     const auto ce_ransac_r_max = config.lookup<float>("circle_extraction.ransac.r_max");
     const auto ce_ransac_r_min = config.lookup<float>("circle_extraction.ransac.r_min");
-    const auto cloud = filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers);
+    const auto cloud = flatten(filter_planes(downsample(nova::read_file<lidar_data_parser>("./benchmark/real.xyz").value(), leaf_size), fp_dist_threshold, fp_min_inliers));
     const auto clusters = cluster(cloud, c_k_search, c_cluster_size_max, c_cluster_size_min, c_num_of_neighbours, c_smoothness_threshold, c_curvature_threshold);
     const auto point_clouds = extract_clusters(cloud, clusters);
 
@@ -345,10 +369,12 @@ BENCHMARK(bench_downsample_sim);
 BENCHMARK(bench_downsample_real);
 BENCHMARK(bench_filter_planes_downsampled_sim);
 BENCHMARK(bench_filter_planes_downsampled_real);
-BENCHMARK(bench_cluster_filtered_downsampled_sim);
-BENCHMARK(bench_cluster_filtered_downsampled_real);
-BENCHMARK(bench_extract_clusters_filtered_downsampled_sim);
-BENCHMARK(bench_extract_clusters_filtered_downsampled_real);
+BENCHMARK(bench_flatten_filtered_downsampled_sim);
+BENCHMARK(bench_flatten_filtered_downsampled_real);
+BENCHMARK(bench_cluster_flattened_filtered_downsampled_sim);
+BENCHMARK(bench_cluster_flattened_filtered_downsampled_real);
+BENCHMARK(bench_extract_clusters_flattened_filtered_downsampled_sim);
+BENCHMARK(bench_extract_clusters_flattened_filtered_downsampled_real);
 BENCHMARK(bench_extract_1_circle_sim);
 BENCHMARK(bench_extract_1_circle_real);
 BENCHMARK(bench_extract_circles_par_sim);
