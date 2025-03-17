@@ -210,6 +210,34 @@ def run_perception(per_bin, work_dir, sim_out_dirs, per_cfg, per_params, logger)
     return per_out_dirs
 
 
+def run_slam(slam_bin, work_dir, per_out_dirs, slam_cfg, slam_params, logger):
+    slam_cfgs = generate_configs(slam_cfg, slam_params)
+    slam_out_dirs = []
+
+    for od in per_out_dirs:
+        for name, cfg in slam_cfgs:
+            out_dir = f"{work_dir}/slam_out-{od.lstrip(f'{work_dir}/')}-{name}"
+
+            if not os.path.exists(f"{out_dir}/data"):
+                os.makedirs(f"{out_dir}/data")
+
+            with open(f"{out_dir}/slam.cfg.yaml", "w") as of:
+                of.write(cfg.strip())
+
+            slam_out_dirs.append(out_dir)
+            logger.info(f"[SLAM] Output directory: {out_dir}")
+
+            result = run_command(f"{slam_bin} --config {out_dir}/slam.cfg.yaml --indir {od}/data --outdir {out_dir}/data --format xyz")
+            if result.returncode != 0:
+                logger.error("[SLAM] Something went wrong!")
+                logger.error(f"[SLAM] STDOUT:\n{result.stdout}")
+                logger.error(f"[SLAM] STDERR:\n{result.stderr}")
+            #  break   # TODO: Remove
+        #  break   # TODO: Remove
+
+    return slam_out_dirs
+
+
 def run_command(command: str, shell=False) -> int:
     """ Run a command
 

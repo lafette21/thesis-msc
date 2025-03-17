@@ -103,7 +103,7 @@
 
     std::vector<pcl::PointIndices> clusters;
     reg.extract(clusters);
-    pcl::io::savePLYFile("./clusters.ply", *reg.getColoredCloud());
+    // pcl::io::savePLYFile("./clusters.ply", *reg.getColoredCloud());
 
     return clusters;
 }

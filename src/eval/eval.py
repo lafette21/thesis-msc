@@ -3,6 +3,8 @@
 import argparse
 import json
 import logging
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 import pandas as pd
 import re
@@ -67,10 +69,13 @@ clustering:
 circle_extraction:
   ransac:
     distance_threshold: 0.07 # m
-    iter: 10000
+    iter: __RANSAC_ITER__
     min_samples: 20
     r_max: 0.32 # m
     r_min: 0.28 # m
+"""
+
+SLAM_CONFIG = """
 pairing:
   distance_threshold: 0.5 # m
 spatial_consistency:
@@ -83,12 +88,16 @@ initial_velocity: __INITIAL_VELOCITY__ # m/s
 
 
 SIM_PARAMS = {
-    "__VELOCITY__": [1, 2, 4],
+    "__VELOCITY__": [1, 2],
     "__ACCURACY__": [0.01, 0.05, 0.1],
 }
 
 PER_PARAMS = {
-    "__INITIAL_VELOCITY__": [2],
+    "__RANSAC_ITER__": [10000, 100000]
+}
+
+SLAM_PARAMS = {
+    "__INITIAL_VELOCITY__": [1, 2],
 }
 
 
@@ -133,8 +142,9 @@ def parse_arguments() -> argparse.Namespace:
         prog="Evaluation script",
     )
 
-    parser.add_argument("-s", "--simulator", metavar="SIMULATOR_BIN", type=str, required=True, help="path of the simulator binary executable")
-    parser.add_argument("-p", "--perception", metavar="PERCEPTION_BIN", type=str, required=True, help="path of the perception binary executable")
+    parser.add_argument("--simulator", metavar="SIMULATOR_BIN", type=str, required=True, help="path of the simulator binary executable")
+    parser.add_argument("--perception", metavar="PERCEPTION_BIN", type=str, required=True, help="path of the perception binary executable")
+    parser.add_argument("--slam", metavar="SLAM_BIN", type=str, required=True, help="path of the SLAM binary executable")
     parser.add_argument("-w", "--work-dir", type=str, required=True, help="path of the working directory (will be created if not present)")
     parser.add_argument("--map", type=str, required=True, help="path of the map file")
     parser.add_argument("--path", type=str, required=True, help="path of the path file")
@@ -161,6 +171,7 @@ def main():
 
     logger.info(f"Simulator: {args.simulator}")
     logger.info(f"Perception: {args.perception}")
+    logger.info(f"SLAM: {args.slam}")
     logger.info(f"Working directory: {args.work_dir}\n")
 
     sim_out_dirs = utils.run_simulator(args.simulator, args.work_dir, args.map, args.path, SIM_CONFIG, SIM_PARAMS, logger)
@@ -168,6 +179,9 @@ def main():
 
     per_out_dirs = utils.run_perception(args.perception, args.work_dir, sim_out_dirs, PER_CONFIG, PER_PARAMS, logger)
     logger.debug(f"Perception output directories: {per_out_dirs}")
+
+    slam_out_dirs = utils.run_slam(args.slam, args.work_dir, per_out_dirs, SLAM_CONFIG, SLAM_PARAMS, logger)
+    logger.debug(f"SLAM output directories: {slam_out_dirs}")
 
     ref_points = utils.read_ref_points(args.map)
     logger.debug(f"Reference points: {ref_points}")
@@ -181,7 +195,7 @@ def main():
 
     evaluated_scenarios = {}
 
-    for dir in per_out_dirs:
+    for dir in slam_out_dirs:
         file_path_list, paired_list, out_of_range_list = utils.eval_scenario(f"{dir}/data", origin, ref_points, logger)
         evaluated_scenarios[dir] = (file_path_list, paired_list, out_of_range_list)
 
@@ -193,7 +207,7 @@ def main():
             "gt_ratio": [],
             "avg_in_range_dist": [],
             "avg_out_of_range_dist": [],
-            "processing_time_ms": [],
+            "processing_time_us": [],
         }
 
         with open(f"{k}/data/stats.json", "r") as inf:
@@ -212,20 +226,47 @@ def main():
                         #  print(p)
                     #  break
             else:
-                data["success_ratio"].append("NaN")
-                data["fail_ratio"].append("NaN")
-                data["gt_ratio"].append("NaN")
+                data["success_ratio"].append(np.nan)
+                data["fail_ratio"].append(np.nan)
+                data["gt_ratio"].append(np.nan)
             if len(paired) > 0:
                 data["avg_in_range_dist"].append(dist_sum(paired) / len(paired))
             else:
-                data["avg_in_range_dist"].append("NaN")
+                data["avg_in_range_dist"].append(np.nan)
             if len(out_of_range) > 0:
                 data["avg_out_of_range_dist"].append(dist_sum(out_of_range) / len(out_of_range))
             else:
-                data["avg_out_of_range_dist"].append("NaN")
-            data["processing_time_ms"].append(stats["processingTimesMs"][idx])
+                data["avg_out_of_range_dist"].append(np.nan)
+            data["processing_time_us"].append(stats["processingTimesUs"][idx])
+
+        fields = {
+            "success_ratio": "Success ratio",
+            "fail_ratio": "Fail ratio",
+            "gt_ratio": "Ground truth ratio",
+            "avg_in_range_dist": "Avg. in-range distance (m)",
+            "avg_out_of_range_dist": "Avg. out-of-range distance (m)",
+            "processing_time_us": "Processing time (μs)"
+        }
+
+        for fk, fv in fields.items():
+            field = data[fk]
+            label = fv
+
+            print(field)
+            print(label)
+
+            #  plt.scatter([i for i, elem in enumerate(field) if elem != "NaN"], [elem for elem in field if elem != "NaN"], color='#18789F', s=15)
+            plt.scatter([i for i in range(len(field))], field, color='#18789F', s=15)
+
+            plt.xlabel('Frame')
+            plt.ylabel(label)
+
+            plt.savefig(f'{args.work_dir}/{fk}-{os.path.basename(k)}.pdf')
+            plt.clf()
+
         df = pd.DataFrame(data)
-        df.to_excel(f"{k}.xlsx", index=False)
+        #  df.to_excel(f"{k}.xlsx", index=False)
+        df.to_csv(f"{k}.csv", index=False)
 
 if __name__ == "__main__":
     try:
